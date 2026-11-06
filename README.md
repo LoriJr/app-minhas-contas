@@ -20,6 +20,7 @@ Para desenvolvimento separado: Java 21 e Maven 3.9, PostgreSQL disponível; expo
 - Criar, editar, excluir e consultar contas: empresa de serviço público, aluguel, garagem, condomínio e outras.
 - Valores decimais no banco, vencimento, lembrete por conta, busca, filtros e calendário em lista por mês.
 - Registro **manual** de pagamento e reabertura; nenhuma transferência é executada.
+- Em **Nova conta → Importar do mês anterior**, selecione contas para copiar para o mês corrente (ou outro mês escolhido). Copia descrição, categoria, empresa, valor e antecedência do lembrete; mantém o dia de vencimento, limitado ao último dia do destino. Cópias ficam em aberto, sem códigos de pagamento antigos. Revise os valores após importar. Repetir a importação da mesma conta de origem para o mesmo mês não duplica os registros, mesmo se o vencimento da cópia for editado. Contas equivalentes cadastradas manualmente não são identificadas como duplicatas. O histórico anterior permanece intacto.
 - Código original de pagamento armazenado por usuário. Para Pix copia e cola, QR Code gerado a partir do texto exato, tanto no frontend quanto no endpoint autenticado. Linha digitável pode ser guardada e copiada; não há imagem de código de barras nesta versão.
 - Painel de lembretes calculado ao abrir o app; servidor consulta a cada 15 minutos e envia e-mail no máximo uma vez por data após envio bem-sucedido, da antecedência selecionada até o registro de pagamento. Contas vencidas continuam gerando aviso. Fuso America/Sao_Paulo.
 - Demonstração com dados fictícios no localStorage, separada da API. A conta demo não fornece autenticação e não envia mensagens.
@@ -36,14 +37,16 @@ Defina MAIL_ENABLED=true e configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSW
 
 ## Testes
 
-`cd backend && mvn test`: acesso anônimo, proteção CSRF, consulta limitada ao dono e rejeição de QR de outro usuário.
+`cd backend && mvn test`: 15 testes cobrindo acesso anônimo, proteção CSRF, consulta limitada ao dono, rejeição de QR de outro usuário e importação mensal (permissões, seleção, duplicatas, virada de ano, fevereiro e preservação do histórico). Os testes de serviço usam repositórios simulados; bloqueio e índice único ainda precisam de teste de integração com PostgreSQL.
+
+`cd frontend && npm test`: 3 testes da importação no modo de demonstração.
 
 `cd frontend && npm run build`: valida o empacotamento React.
 
-Neste ambiente, a instalação não pôde ser concluída porque o proxy de rede estava inacessível. A sintaxe JSX/JSON do frontend e o XML do POM foram verificados com sucesso. Compilação, testes, execução em navegador e entrega em hospedagem **não foram verificados**. Os utilitários Sites também não estão instalados; Sites usa Workers e não hospeda a JVM. Use um host de containers/JVM para executar o projeto completo.
+Validação em 06/11/2026: compilação do frontend, 3 testes Node e 15 testes Java concluídos com sucesso. Não foram verificados navegação real, migrações em PostgreSQL, envio SMTP ou hospedagem. Use um host de containers/JVM para executar o projeto completo.
 
 ## Antes de divulgar para outros usuários
 
 Esta é uma base MVP, não uma declaração de prontidão de produção. Configure domínio HTTPS, COOKIE_SECURE=true, proxy reverso e backup com restauração testada. Não exponha o Postgres. Adicione recuperação/verificação de e-mail, limitação de tentativas no login/cadastro, termos e política de privacidade LGPD, exclusão/exportação de dados, observabilidade, testes de integração reais com Postgres/SMTP e revisão de segurança. O projeto não contém recuperação de senha, recorrência automática, anexos de documentos, auditoria de alterações ou conciliação bancária. Alertas de e-mail podem expor título/valor ao provedor de e-mail: informe isso na política de privacidade.
 
-As contas são registros avulsos. Para uma conta mensal, cadastre cada vencimento. Não há débito automático.
+As contas são registros avulsos. Para repetir contas mensais, use a importação do mês anterior e revise os valores. Não há recorrência automática nem débito automático.
