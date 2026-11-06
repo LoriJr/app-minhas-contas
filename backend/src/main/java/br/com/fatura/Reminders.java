@@ -1,4 +1,19 @@
 package br.com.fatura;
-import org.springframework.stereotype.*;import org.springframework.scheduling.annotation.*;import org.springframework.beans.factory.annotation.Value;import org.springframework.mail.*;import org.springframework.mail.javamail.*;import java.time.*;
-@Component class Reminders {final Bills bills;final Users users;final JavaMailSender mail;@Value("${app.mail.enabled}") boolean enabled;@Value("${app.mail.from}") String from;Reminders(Bills b,Users u,JavaMailSender m){bills=b;users=u;mail=m;}
-@Scheduled(cron="0 */15 * * * *",zone="America/Sao_Paulo") public void send(){if(!enabled)return;LocalDate today=LocalDate.now(ZoneId.of("America/Sao_Paulo"));for(Bill b:bills.findByPaidFalse()){if(b.due.minusDays(b.reminderDays).isAfter(today)||today.equals(b.lastReminded))continue;users.findById(b.ownerId).ifPresent(u->{try{SimpleMailMessage m=new SimpleMailMessage();m.setFrom(from);m.setTo(u.email);m.setSubject((b.due.isBefore(today)?"Conta vencida: ":"Lembrete: ")+b.title);m.setText("Sua conta "+b.title+" de R$ "+b.amount+" vence em "+b.due+". Confira os dados no app antes de pagar.");mail.send(m);b.lastReminded=today;bills.save(b);}catch(MailException e){System.getLogger("reminders").log(System.Logger.Level.WARNING,"Falha no envio de lembrete; nova tentativa no próximo ciclo.");}});}}}
+
+import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.javamail.JavaMailSender;
+
+@Component
+class Reminders {
+    final Users users; final BillService service; final JavaMailSender mail;
+    @Value("${app.mail.enabled}") boolean enabled;
+    @Value("${app.mail.from}") String from;
+    Reminders(Users users, BillService service, JavaMailSender mail) { this.users=users; this.service=service; this.mail=mail; }
+    @Scheduled(cron="0 */15 * * * *",zone="America/Sao_Paulo")
+    public void send() {
+        if(!enabled) return;
+        users.findAll().forEach(user -> service.remind(user.id,mail,from));
+    }
+}
