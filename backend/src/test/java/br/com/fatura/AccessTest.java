@@ -1,0 +1,9 @@
+package br.com.fatura;
+import org.junit.jupiter.api.*;import org.springframework.beans.factory.annotation.*;import org.springframework.boot.test.autoconfigure.web.servlet.*;import org.springframework.context.annotation.Import;import org.springframework.test.context.bean.override.mockito.MockitoBean;import org.springframework.test.web.servlet.MockMvc;import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;import static org.mockito.Mockito.*;import java.util.*;
+@WebMvcTest(Api.class) @Import(Security.class) class AccessTest {
+@Autowired MockMvc mvc;@MockitoBean Users users;@MockitoBean Bills bills;
+@Test void anonymousCannotReadBills()throws Exception{mvc.perform(get("/api/bills")).andExpect(status().isUnauthorized());}
+@Test void writesRequireCsrf()throws Exception{mvc.perform(post("/api/bills").with(user("a@example.com"))).andExpect(status().isForbidden());}
+@Test void cannotReadAnotherUsersQr()throws Exception{AppUser u=new AppUser();u.email="a@example.com";UUID id=UUID.randomUUID();when(users.findByEmail(u.email)).thenReturn(Optional.of(u));when(bills.findByIdAndOwnerId(id,u.id)).thenReturn(Optional.empty());mvc.perform(get("/api/bills/"+id+"/qr").with(user(u.email))).andExpect(status().isNotFound());}
+@Test void listIsScopedToOwner()throws Exception{AppUser u=new AppUser();u.email="a@example.com";when(users.findByEmail(u.email)).thenReturn(Optional.of(u));when(bills.findByOwnerIdOrderByDueAsc(u.id)).thenReturn(List.of());mvc.perform(get("/api/bills").with(user(u.email))).andExpect(status().isOk()).andExpect(content().json("[]"));verify(bills).findByOwnerIdOrderByDueAsc(u.id);}
+}

@@ -1,0 +1,7 @@
+package br.com.fatura;
+import org.springframework.context.annotation.*;import org.springframework.security.config.annotation.web.builders.HttpSecurity;import org.springframework.security.web.*;import org.springframework.security.core.userdetails.*;import org.springframework.security.crypto.bcrypt.*;import org.springframework.security.crypto.password.*;import org.springframework.security.web.csrf.*;
+@Configuration class Security {
+@Bean PasswordEncoder encoder(){return new BCryptPasswordEncoder(12);}
+@Bean UserDetailsService userDetails(Users users){return email->users.findByEmail(email.toLowerCase().trim()).map(u->User.withUsername(u.email).password(u.password).roles("USER").build()).orElseThrow(()->new UsernameNotFoundException("Usuário inválido"));}
+@Bean SecurityFilterChain chain(HttpSecurity h)throws Exception{return h.authorizeHttpRequests(a->a.requestMatchers("/api/csrf","/api/register","/","/index.html","/assets/**","/manifest.webmanifest","/icon.svg").permitAll().anyRequest().authenticated()).csrf(c->c.csrfTokenRepository(new HttpSessionCsrfTokenRepository())).formLogin(f->f.loginProcessingUrl("/api/login").successHandler((q,r,a)->{r.setStatus(200);r.setContentType("application/json");r.getWriter().write("{\"ok\":true}");}).failureHandler((q,r,e)->r.sendError(401))).logout(l->l.logoutUrl("/api/logout").logoutSuccessHandler((q,r,a)->r.setStatus(204))).exceptionHandling(e->e.authenticationEntryPoint((q,r,x)->r.sendError(401))).build();}
+}

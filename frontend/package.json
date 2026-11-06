@@ -1,0 +1,1 @@
+{"name":"fatura-frontend","version":"1.0.0","type":"module","scripts":{"dev":"vite --host 0.0.0.0","build":"vite build"},"dependencies":{"react":"19.1.1","react-dom":"19.1.1","lucide-react":"0.468.0","qrcode":"1.5.4"},"devDependencies":{"vite":"6.4.1"}}

@@ -1,0 +1,3 @@
+create table app_user(id uuid primary key, name varchar(100) not null, email varchar(254) not null unique, password varchar(255) not null);
+create table bill(id uuid primary key, owner_id uuid not null references app_user(id), title varchar(120) not null, category varchar(50) not null, amount numeric(14,2) not null check(amount>0), due date not null, paid boolean not null default false, reminder_days integer not null, payment_code varchar(512), payment_type varchar(20) not null, source varchar(200), last_reminded date, version bigint not null default 0);
+create index bill_owner_due on bill(owner_id,due);
