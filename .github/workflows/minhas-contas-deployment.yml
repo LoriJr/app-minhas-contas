@@ -1,52 +1,104 @@
+# Nome do workflow: é o título que aparece na aba "Actions" do repositório
 name: Docker Image Minhas-Contas
 
+# "on": define os gatilhos que disparam este pipeline
 on:
+  # gatilho 1:executar automaticamente a cada push de commit...
   push:
+    # ...apenas quando o push for na branch main (push em outras branches não dispara nada)
     branches: [ "main" ]
+  # gatilho 2:habilita o botão "Run workflow" na aba Actions (execução manual, sem precisar de push)
   workflow_dispatch:
 
+# "concurrency": controle de execução paralela entre runs deste mesmo workflow
 concurrency:
+  # nome da "fila": runs que compartilham este grupo nunca rodam ao mesmo tempo — um espera o outro
   group: docker-image-release
+  # false = se um push novo chegar com um run em andamento, ele ESPERA o atual terminar (não cancela);
+  #         isso evita que dois runs calculem/publiquem a mesma versão em corrida
   cancel-in-progress: false
 
+# "jobs": bloco que declara as unidades de trabalho do pipeline (este tem apenas um job)
 jobs:
 
+  # id do job: "build" (é o nome que aparece na árvore de logs do run)
   build:
+    # máquina temporária que o GitHub provisiona na nuvem dele para rodar este job (Ubuntu atual, limpo)
     runs-on: ubuntu-latest
 
+    # "steps": lista ordenada de passos; rodam um por vez, e qualquer falha (exit != 0) encerra o job
     steps:
+
+    # baixa o código do repositório para o espaço de trabalho do runner (todos os arquivos, incluindo Dockerfile e pom)
     - uses: actions/checkout@v4
 
+    # lê a versão do projeto direto do pom.xml e a expõe para os steps seguintes
+    # "id: version" dá nome a este step — é o que permite referenciá-lo depois via "steps.version.outputs.tag"
     - name: Read version from pom
       id: version
+      # script bash de várias linhas executado no runner (o "|" preserva as quebras de linha)
       run: |
+        # roda o Maven dentro de backend/: "help:evaluate -Dexpression=project.version" imprime o <version> do pom (ex.: 1.0.1);
+        # -q suprime logs do Maven e -DforceStdout força a saída limpa só com o valor — tudo vai para a variável VERSION
         VERSION=$(cd backend && mvn -q -DforceStdout help:evaluate -Dexpression=project.version)
+        # guarda de segurança 1:se a leitura falhar (pom corrompido, erro do Maven), VERSION vem vazia...
         if [ -z "$VERSION" ]; then
+          # "::error::" faz o GitHub desenhar um erro destacado no log do run
           echo "::error::Falha ao ler a versao do projeto em backend/pom.xml"
+          # exit 1 = código de saída de erro: encerra o step (e o job) sem publicar nada
           exit 1
         fi
-        if curl -sf "https://hub.docker.com/v2/repositories/loujrdocker/minhas-contas/tags/$VERSION" > /dev/null; then
-          echo "::error::A versao $VERSION ja existe no Docker Hub. Aumente a versao no pom.xml antes de publicar."
-          exit 1
-        fi
+        # publica o valor lido como "output" nomeado do step (sintaxe do GitHub): vira ${{ steps.version.outputs.tag }}
         echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
-        echo "Versao lida do pom.xml: $VERSION"
+        # guarda 2 (SKIP): consulta a API pública do Docker Hub (curl -s silencioso, -f responde erro se HTTP != 200)
+        # para verificar se a tag $VERSION já existe no repositório loujrdocker/minhas-contas
+        if curl -sf "https://hub.docker.com/v2/repositories/loujrdocker/minhas-contas/tags/$VERSION" > /dev/null; then
+          # se a versão já foi publicada, NÃO falha: registra um aviso verde ("::notice::") em destaque no run
+          echo "::notice::A versao $VERSION ja existe no Docker Hub. Nada a publicar neste push."
+          # marca skip=true: os steps de login e build lá embaixo serão pulados e o run termina VERDE
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+        else
+          # versão inédita no Hub: libera o fluxo normal de build e push
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          # mensagem informativa: aparece no log ajudando a auditar qual versão este build publicou
+          echo "Versao lida do pom.xml: $VERSION"
+        fi
 
+    # nome do step como aparece na árvore de logs
     - name: Login to Docker Hub
+      # roda só quando a guarda de versão liberou (skip=false); com skip=true o step é pulado (skip de listagem, não falha)
+      if: steps.version.outputs.skip != 'true'
+      # action oficial da Docker: faz "docker login" no Hub de forma segura (o token não fica exposto no histórico do shell)
       uses: docker/login-action@v4
+      # entradas (inputs) da action:
       with:
+        # username do Docker Hub — vem do secret do repositório, nunca escrito em texto aqui no arquivo
         username: ${{secrets.DOCKER_USERNAME}}
+        # access token (Read & Write) criado na sua conta do Hub, guardado como secret
         password: ${{secrets.DOCKER_ACCESS_TOKEN}}
 
+    # nome do step como aparece na árvore de logs
     - name: Build and push image
+      # roda só quando existe versão inédita a publicar (skip=false); evita rebuild/re-push desnecessário
+      if: steps.version.outputs.skip != 'true'
+      # action oficial da Docker: builda a imagem a partir do Dockerfile e faz o push num passo só (buildx por baixo)
       uses: docker/build-push-action@v6
+      # entradas da action:
       with:
+        # contexto do build: a raiz do repositório (onde está o Dockerfile; o .dockerignore filtra o que entra)
         context: .
+        # envia a imagem para o registry após o build (depende do login do step anterior; false = só testa o build)
         push: true
+        # tags que esta imagem vai receber no Hub (o "|" abaixo abre um bloco de texto literal):
+        #   linha 1 = tag IMUTÁVEL, a versão lida do pom (ex.: 1.0.1) — é esta que o GKE/produção fixa e permite rollback
+        #   linha 2 = tag MUTÁVEL "latest", o cursor da versão mais nova, repontado para esta imagem a cada build verde
+        # (atenção: não se pode escrever comentários "#" DENTRO do bloco "|" — ali toda linha vira texto de tag)
         tags: |
           loujrdocker/minhas-contas:${{ steps.version.outputs.tag }}
           loujrdocker/minhas-contas:latest
+        # restaura o cache de camadas salvo no GitHub (Actions Cache) pelo último run — pula re-download de npm/Maven
         cache-from: type=gha
+        # salva o cache de camadas (mode=max inclui os estágios intermediários do multi-stage) para acelerar o próximo run
         cache-to: type=gha,mode=max
 
 
