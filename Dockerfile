@@ -12,7 +12,7 @@ RUN mvn -B verify
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
-COPY --from=backend /app/target/fatura-1.0.0.jar app.jar
+COPY --from=backend /app/target/fatura-*.jar app.jar
 USER app
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","app.jar"]

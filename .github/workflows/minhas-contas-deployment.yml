@@ -4,6 +4,11 @@ on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
+
+concurrency:
+  group: docker-image-release
+  cancel-in-progress: false
+
 jobs:
 
   build:
@@ -11,6 +16,21 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Read version from pom
+      id: version
+      run: |
+        VERSION=$(xmllint --xpath "string(//*[local-name()='project']/*[local-name()='version'])" backend/pom.xml)
+        if [ -z "$VERSION" ]; then
+          echo "::error::Falha ao ler a versao do projeto em backend/pom.xml"
+          exit 1
+        fi
+        if curl -sf "https://hub.docker.com/v2/repositories/loujrdocker/minhas-contas/tags/$VERSION" > /dev/null; then
+          echo "::error::A versao $VERSION ja existe no Docker Hub. Aumente a versao no pom.xml antes de publicar."
+          exit 1
+        fi
+        echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "Versao lida do pom.xml: $VERSION"
 
     - name: Login to Docker Hub
       uses: docker/login-action@v4
@@ -24,7 +44,7 @@ jobs:
         context: .
         push: true
         tags: |
-          loujrdocker/minhas-contas:gha-${{ github.sha }}
+          loujrdocker/minhas-contas:${{ steps.version.outputs.tag }}
           loujrdocker/minhas-contas:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
