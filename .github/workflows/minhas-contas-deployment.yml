@@ -20,7 +20,7 @@ jobs:
     - name: Read version from pom
       id: version
       run: |
-        VERSION=$(xmllint --xpath "string(//*[local-name()='project']/*[local-name()='version'])" backend/pom.xml)
+        VERSION=$(cd backend && mvn -q -DforceStdout help:evaluate -Dexpression=project.version)
         if [ -z "$VERSION" ]; then
           echo "::error::Falha ao ler a versao do projeto em backend/pom.xml"
           exit 1
