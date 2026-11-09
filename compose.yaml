@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: fatura
-      POSTGRES_USER: fatura
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Defina DATABASE_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -20,8 +20,8 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: jdbc:postgresql://db:5432/fatura
-      DATABASE_USER: fatura
+      DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      DATABASE_USER: ${POSTGRES_USER}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       MAIL_ENABLED: ${MAIL_ENABLED:-false}
