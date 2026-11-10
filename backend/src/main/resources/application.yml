@@ -1,0 +1,48 @@
+# Equivalente YAML do antigo application.properties (conversao chave a chave).
+# Os placeholders ${VAR:default} continuam sendo resolvidos do ambiente
+# (docker compose hoje; ConfigMap/Secret do Kubernetes no futuro).
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/fatura}
+    username: ${DATABASE_USER:fatura}
+    password: ${DATABASE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate          # schema vem 100% do Flyway; Boot so valida
+    open-in-view: false
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: true
+server:
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${COOKIE_SECURE:true}   # false em dev sem TLS; true com Ingress/HTTPS
+  error:
+    include-message: never
+app:
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:nao-responda@example.com}
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
