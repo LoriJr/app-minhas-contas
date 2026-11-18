@@ -30,6 +30,7 @@ spec:
       containers:
         - name: app
           image: loujrdocker/minhas-contas:latest   # CI/CD atualiza esta tag
+          imagePullPolicy: Always                     # força re-pull a cada pod novo (evita cache)
           ports:
             - containerPort: 8080
           envFrom:
