@@ -153,10 +153,11 @@ jobs:
 
     # Força o pod a recarregar com a imagem mais nova (latest)
     # O rollout restart faz rolling update: pod novo só substitui o velho quando ficar pronto
+    # timeout aumentado para 300s (Spring Boot + Flyway + Postgres cold start pode demorar)
     - name: Restart Deployment
       run: |
         kubectl rollout restart deployment/minhas-contas -n minhas-contas
-        kubectl rollout status deployment/minhas-contas -n minhas-contas --timeout=120s
+        kubectl rollout status deployment/minhas-contas -n minhas-contas --timeout=300s
 
     # Aguarda o Postgres também estar saudável (útil em deploys do zero)
     - name: Verify Pods

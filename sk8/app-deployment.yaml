@@ -15,6 +15,18 @@ spec:
       labels:
         app: minhas-contas
     spec:
+      # Espera o Postgres aceitar conexões antes de subir a Spring Boot
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:17-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h postgres -p 5432 -U fatura; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
       containers:
         - name: app
           image: loujrdocker/minhas-contas:latest   # CI/CD atualiza esta tag

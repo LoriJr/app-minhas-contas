@@ -33,6 +33,8 @@ spec:
       labels:
         app: postgres
     spec:
+      securityContext:
+        fsGroup: 999   # gid do usuário 'postgres' no postgres:17-alpine
       containers:
         - name: postgres
           image: postgres:17-alpine
