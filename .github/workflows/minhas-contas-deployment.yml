@@ -107,16 +107,11 @@ jobs:
         cache-to: type=gha,mode=max
 
   # ─── Job de Deploy no GKE ──────────────────────────────────────────────────
-  # Só roda se o build tiver sucesso. Se o build pulou (versão já existia),
-  # este job também não roda.
+  # Roda sempre que o build terminar com sucesso (mesmo se a imagem já existia).
+  # Isso permite re-deploy sem precisar subir versão no pom.
   deploy:
     needs: build
-    if: needs.build.outputs.skip != 'true'
     runs-on: ubuntu-latest
-
-    # Passa o output do build para este job
-    # (GitHub Actions não permite "needs" ler outputs de outro job diretamente;
-    #  usamos um workaround com outputs no nível do job)
 
     steps:
 
