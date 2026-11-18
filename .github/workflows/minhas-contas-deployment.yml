@@ -26,6 +26,11 @@ jobs:
     # máquina temporária que o GitHub provisiona na nuvem dele para rodar este job (Ubuntu atual, limpo)
     runs-on: ubuntu-latest
 
+    # Outputs expostos para outros jobs (deploy) via needs.build.outputs.*
+    outputs:
+      skip: ${{ steps.version.outputs.skip }}
+      tag: ${{ steps.version.outputs.tag }}
+
     # "steps": lista ordenada de passos; rodam um por vez, e qualquer falha (exit != 0) encerra o job
     steps:
 
@@ -100,5 +105,68 @@ jobs:
         cache-from: type=gha
         # salva o cache de camadas (mode=max inclui os estágios intermediários do multi-stage) para acelerar o próximo run
         cache-to: type=gha,mode=max
+
+  # ─── Job de Deploy no GKE ──────────────────────────────────────────────────
+  # Só roda se o build tiver sucesso. Se o build pulou (versão já existia),
+  # este job também não roda.
+  deploy:
+    needs: build
+    if: needs.build.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+
+    # Passa o output do build para este job
+    # (GitHub Actions não permite "needs" ler outputs de outro job diretamente;
+    #  usamos um workaround com outputs no nível do job)
+
+    steps:
+
+    # Baixa o repositório (precisamos dos manifests em sk8/)
+    - uses: actions/checkout@v4
+
+    # Autentica no GCP usando a chave JSON do Service Account
+    # Salve a chave como secret: GCP_SA_KEY (cole o JSON inteiro)
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    # Instala o gcloud CLI (já vem no runner mas garante a versão)
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    # Obtém as credenciais do cluster (equivalente ao passo 3 que você faria manualmente)
+    - name: Get GKE Credentials
+      uses: google-github-actions/get-gke-credentials@v2
+      with:
+        cluster_name: ${{ secrets.GKE_CLUSTER }}
+        location: ${{ secrets.GKE_ZONE }}
+
+    # Aplica os manifests do Kubernetes
+    - name: Deploy to GKE
+      run: |
+        # Cria o namespace se não existir (idempotente)
+        kubectl apply -f sk8/namespace.yaml
+
+        # Aplica ConfigMap, Secret, Postgres, App, Service e Ingress
+        kubectl apply -f sk8/configmap.yaml
+        kubectl apply -f sk8/postgres.yaml
+        kubectl apply -f sk8/app-deployment.yaml
+        kubectl apply -f sk8/app-service.yaml
+        kubectl apply -f sk8/ingress.yaml
+
+    # Força o pod a recarregar com a imagem mais nova (latest)
+    # O rollout restart faz rolling update: pod novo só substitui o velho quando ficar pronto
+    - name: Restart Deployment
+      run: |
+        kubectl rollout restart deployment/minhas-contas -n minhas-contas
+        kubectl rollout status deployment/minhas-contas -n minhas-contas --timeout=120s
+
+    # Aguarda o Postgres também estar saudável (útil em deploys do zero)
+    - name: Verify Pods
+      run: |
+        kubectl get pods -n minhas-contas
+        kubectl get ingress -n minhas-contas
 
 

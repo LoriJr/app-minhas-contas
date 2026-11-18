@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minhas-contas
+  namespace: minhas-contas
+  labels:
+    app: minhas-contas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minhas-contas
+  template:
+    metadata:
+      labels:
+        app: minhas-contas
+    spec:
+      containers:
+        - name: app
+          image: loujrdocker/minhas-contas:latest   # CI/CD atualiza esta tag
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15

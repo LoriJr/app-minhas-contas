@@ -1,0 +1,16 @@
+# ─── ConfigMap (variáveis não-sensíveis) ─────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: minhas-contas
+data:
+  DATABASE_URL: "jdbc:postgresql://postgres:5432/fatura"
+  DATABASE_USER: "fatura"
+  COOKIE_SECURE: "true"
+  MAIL_ENABLED: "false"
+  SMTP_HOST: ""
+  SMTP_PORT: "587"
+  SMTP_USER: ""
+  SMTP_AUTH: "true"
+  MAIL_FROM: "nao-responda@example.com"

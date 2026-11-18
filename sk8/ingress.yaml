@@ -1,0 +1,27 @@
+# ─── ManagedCertificate (SSL automático do GKE) ──────────────────────────────
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: minhas-contas-cert
+  namespace: minhas-contas
+spec:
+  domains:
+    - minhas-contas.seudominio.com.br   # ← troque pelo seu domínio real
+---
+# ─── Ingress (HTTP → HTTPS + roteamento) ─────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minhas-contas-ingress
+  namespace: minhas-contas
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "minhas-contas-ip"
+    networking.gke.io/managed-certificates: "minhas-contas-cert"
+    kubernetes.io/ingress.allow-http: "false"          # força HTTPS
+spec:
+  defaultBackend:
+    service:
+      name: minhas-contas
+      port:
+        number: 80
