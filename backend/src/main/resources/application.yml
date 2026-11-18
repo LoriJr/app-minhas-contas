@@ -37,10 +37,15 @@ app:
     from: ${MAIL_FROM:nao-responda@example.com}
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health
   endpoint:
     health:
       probes:
         enabled: true
+      show-details: never
   health:
     livenessState:
       enabled: true
