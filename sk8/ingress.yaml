@@ -22,8 +22,8 @@ metadata:
     # Mantemos HTTP habilitado para você poder testar via http://<IP-DO-INGRESS>.
     # Quando o domínio estiver pronto, descomente as 2 linhas abaixo
     # (managed-certificates + allow-http:false) e troque o domínio no ManagedCertificate acima.
-    # networking.gke.io/managed-certificates: "minhas-contas-cert"
-    # kubernetes.io/ingress.allow-http: "false"
+    networking.gke.io/managed-certificates: "minhas-contas-cert"
+    kubernetes.io/ingress.allow-http: "false"
 spec:
   defaultBackend:
     service:
