@@ -6,7 +6,10 @@ namespace: minhas-contas
 resources:
   - namespace.yaml
   - configmap.yaml
-  - secret.yaml
+  # secret.yaml NÃO está aqui de propósito: é placeholder didático.
+  # O Secret real 'app-secrets' é criado pelo CI/CD (step
+  # 'Ensure app-secrets exists') a partir dos GitHub Secrets
+  # DATABASE_PASSWORD e SMTP_PASSWORD. Ver sk8/README.md.
   - postgres.yaml
   - app-deployment.yaml
   - app-service.yaml
