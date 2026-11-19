@@ -22,6 +22,7 @@ spring:
           starttls:
             enable: true
 server:
+  forward-headers-strategy: framework   # GKE HTTPS LB envia X-Forwarded-Proto; faz o Spring reconhecer o HTTPS e tratar cookie Secure/redirect corretamente
   servlet:
     session:
       timeout: 30m
