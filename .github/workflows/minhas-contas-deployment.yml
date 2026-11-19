@@ -152,17 +152,26 @@ jobs:
           --dry-run=client -o yaml | kubectl apply -f -
 
     # Garante que o IP estático global existe ANTES de aplicar o Ingress.
-    # Idempotente: se 'minhas-contas-ip' já existe, describe retorna o endereço; senão, cria.
-    # Sem esse step, o Ingress fica reconciliando infinitamente sem IP (comportamento silencioso).
+    # Idempotente: tenta criar e tolera especificamente o erro "already exists".
+    # (evita depender de compute.addresses.get/describe, que a SA gke-deployer
+    # normalmente não tem permissão; create usa compute.addresses.create, que
+    # a SA tem e responde com 409 "already exists" se o IP já estiver lá.)
     - name: Ensure global static IP exists
       run: |
-        if gcloud compute addresses describe minhas-contas-ip --global --format='value(address)' 2>/dev/null; then
-          echo "IP estático 'minhas-contas-ip' já existe."
+        OUT="$(gcloud compute addresses create minhas-contas-ip \
+                --global \
+                --description='IP publico app minhas-contas' 2>&1 || true)"
+        echo "$OUT"
+        if echo "$OUT" | grep -qi "already exists"; then
+          echo "IP estático 'minhas-contas-ip' já existe (ok, idempotente)."
+        elif echo "$OUT" | grep -qiE "(ERROR|FAILURE)"; then
+          echo "ERRO ao garantir o IP estático:"
+          echo "$OUT"
+          exit 1
         else
-          echo "Criando IP estático global 'minhas-contas-ip'..."
-          gcloud compute addresses create minhas-contas-ip --global --description="IP publico app minhas-contas"
-          gcloud compute addresses describe minhas-contas-ip --global --format='value(address)'
+          echo "IP estático 'minhas-contas-ip' criado com sucesso."
         fi
+
 
     # Aplica os manifests do Kubernetes
     - name: Deploy to GKE
