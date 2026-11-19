@@ -13,12 +13,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 import static org.mockito.Mockito.*;
 import java.util.*;
+import org.springframework.mock.web.MockMultipartFile;
 
 @WebMvcTest(Api.class) @Import(Security.class)
 class AccessTest {
     @Autowired MockMvc mvc;
     @MockitoBean Users users;
     @MockitoBean BillService service;
+    @MockitoBean ExportImport exportImport;
     @Test void anonymousCannotReadBills() throws Exception {
         mvc.perform(get("/api/bills")).andExpect(status().isUnauthorized());
     }
@@ -47,5 +49,31 @@ class AccessTest {
                 .content("{\"title\":\"Aluguel\",\"category\":\"Moradia\",\"amount\":1800,\"dueDay\":32,\"reminderDays\":3}"))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(service);
+    }
+    @Test void anonymousCannotExport() throws Exception {
+        mvc.perform(get("/api/export/csv")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/export/pdf")).andExpect(status().isUnauthorized());
+    }
+    @Test void csvExportReturnsAuthenticatedOwnerBytes() throws Exception {
+        AppUser owner=new AppUser(); owner.email="a@example.com";
+        when(users.findByEmail(owner.email)).thenReturn(Optional.of(owner));
+        when(exportImport.csv(owner.id)).thenReturn("titulo;categoria\r\n".getBytes());
+        mvc.perform(get("/api/export/csv").with(user(owner.email)))
+                .andExpect(status().isOk()).andExpect(content().contentTypeCompatibleWith("text/csv"));
+        verify(exportImport).csv(owner.id);
+    }
+    @Test void importRequiresCsrf() throws Exception {
+        MockMultipartFile file=new MockMultipartFile("file","c.csv","text/csv","x".getBytes());
+        mvc.perform(multipart("/api/import/csv").file(file).with(user("a@example.com")))
+                .andExpect(status().isForbidden());
+    }
+    @Test void importPassesOwnerAndBytes() throws Exception {
+        AppUser owner=new AppUser(); owner.email="a@example.com";
+        when(users.findByEmail(owner.email)).thenReturn(Optional.of(owner));
+        when(exportImport.importCsv(owner.id,"x".getBytes())).thenReturn(new ExportImport.ImportResult(1,List.of()));
+        MockMultipartFile file=new MockMultipartFile("file","c.csv","text/csv","x".getBytes());
+        mvc.perform(multipart("/api/import/csv").file(file).with(user(owner.email)).with(csrf()))
+                .andExpect(status().isOk()).andExpect(content().json("{\"imported\":1,\"errors\":[]}"));
+        verify(exportImport).importCsv(owner.id,"x".getBytes());
     }
 }
