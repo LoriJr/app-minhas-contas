@@ -138,13 +138,40 @@ jobs:
         cluster_name: ${{ secrets.GKE_CLUSTER }}
         location: ${{ secrets.GKE_ZONE }}
 
+    # Cria/atualiza o Secret 'app-secrets' no cluster a partir dos GitHub Secrets.
+    # Idempotente: kubectl create --dry-run | kubectl apply faz upsert (se já existe, substitui; se não, cria).
+    # Sem esse step, um cluster zerado não sobe: postgres/app falham com CreateContainerConfigError.
+    - name: Ensure app-secrets exists (idempotent upsert)
+      env:
+        DB_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+        SMTP_PASSWORD_VALUE: ${{ secrets.SMTP_PASSWORD }}
+      run: |
+        kubectl -n minhas-contas create secret generic app-secrets \
+          --from-literal=DATABASE_PASSWORD="$DB_PASSWORD" \
+          --from-literal=SMTP_PASSWORD="$SMTP_PASSWORD_VALUE" \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+    # Garante que o IP estático global existe ANTES de aplicar o Ingress.
+    # Idempotente: se 'minhas-contas-ip' já existe, describe retorna o endereço; senão, cria.
+    # Sem esse step, o Ingress fica reconciliando infinitamente sem IP (comportamento silencioso).
+    - name: Ensure global static IP exists
+      run: |
+        if gcloud compute addresses describe minhas-contas-ip --global --format='value(address)' 2>/dev/null; then
+          echo "IP estático 'minhas-contas-ip' já existe."
+        else
+          echo "Criando IP estático global 'minhas-contas-ip'..."
+          gcloud compute addresses create minhas-contas-ip --global --description="IP publico app minhas-contas"
+          gcloud compute addresses describe minhas-contas-ip --global --format='value(address)'
+        fi
+
     # Aplica os manifests do Kubernetes
     - name: Deploy to GKE
       run: |
         # Cria o namespace se não existir (idempotente)
         kubectl apply -f sk8/namespace.yaml
 
-        # Aplica ConfigMap, Secret, Postgres, App, Service e Ingress
+        # Aplica ConfigMap, Postgres, App, Service e Ingress
+        # (Secret 'app-secrets' já foi criado no step anterior)
         kubectl apply -f sk8/configmap.yaml
         kubectl apply -f sk8/postgres.yaml
         kubectl apply -f sk8/app-deployment.yaml
