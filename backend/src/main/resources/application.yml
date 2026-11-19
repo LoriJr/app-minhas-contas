@@ -51,3 +51,5 @@ management:
       enabled: true
     readinessState:
       enabled: true
+    mail:
+      enabled: false   # evita 503 no /actuator/health agregado quando SMTP não está acessível

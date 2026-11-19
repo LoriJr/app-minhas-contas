@@ -17,8 +17,13 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "gce"
     kubernetes.io/ingress.global-static-ip-name: "minhas-contas-ip"
-    networking.gke.io/managed-certificates: "minhas-contas-cert"
-    kubernetes.io/ingress.allow-http: "false"          # força HTTPS
+    # Enquanto NÃO tiver domínio apontando pra este IP, o ManagedCertificate
+    # não consegue emitir cert e o HTTPS fica inoperante.
+    # Mantemos HTTP habilitado para você poder testar via http://<IP-DO-INGRESS>.
+    # Quando o domínio estiver pronto, descomente as 2 linhas abaixo
+    # (managed-certificates + allow-http:false) e troque o domínio no ManagedCertificate acima.
+    # networking.gke.io/managed-certificates: "minhas-contas-cert"
+    # kubernetes.io/ingress.allow-http: "false"
 spec:
   defaultBackend:
     service:
