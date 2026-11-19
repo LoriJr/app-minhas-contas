@@ -6,7 +6,7 @@ metadata:
   namespace: minhas-contas
 spec:
   domains:
-    - minhas-contas.seudominio.com.br   # ← troque pelo seu domínio real
+    - minhascontas.duckdns.org   # ← troque pelo seu domínio real
 ---
 # ─── Ingress (HTTP → HTTPS + roteamento) ─────────────────────────────────────
 apiVersion: networking.k8s.io/v1
