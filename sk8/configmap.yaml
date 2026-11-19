@@ -7,7 +7,11 @@ metadata:
 data:
   DATABASE_URL: "jdbc:postgresql://postgres:5432/fatura"
   DATABASE_USER: "fatura"
-  COOKIE_SECURE: "true"
+  # COOKIE_SECURE controla o flag `Secure` do JSESSIONID.
+  # Enquanto o Ingress só serve HTTP (sem ManagedCertificate ativo), DEVE ser false,
+  # senão o browser descarta o cookie e a sessão/CSRF não persistem entre requests.
+  # Quando HTTPS + ManagedCertificate estiverem ativos, trocar para "true".
+  COOKIE_SECURE: "false"
   MAIL_ENABLED: "false"
   SMTP_HOST: ""
   SMTP_PORT: "587"
