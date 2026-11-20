@@ -237,8 +237,13 @@ jobs:
         MAX_RETRIES=5
         WAIT=30
 
-        deploy() {
-          gcloud run deploy minhas-contas \
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "═══ Deploy attempt $i/$MAX_RETRIES (image: $IMAGE) ═══"
+
+          # gcloud --format json: JSON vai para stdout, progress/errors para stderr.
+          # Separamos: stdout → OUTPUT (JSON puro), stderr → arquivo temporário.
+          TMP_ERR=$(mktemp)
+          if OUTPUT=$(gcloud run deploy minhas-contas \
             --image "$IMAGE" \
             --region "$REGION" \
             --update-env-vars "COOKIE_SECURE=true,MAIL_ENABLED=false" \
@@ -249,23 +254,25 @@ jobs:
             --concurrency 10 \
             --service-account "deploy-cloudrun@${PROJECT_ID}.iam.gserviceaccount.com" \
             --allow-unauthenticated \
-            --format json
-        }
+            --format json 2>"$TMP_ERR"); then
 
-        for i in $(seq 1 $MAX_RETRIES); do
-          echo "═══ Deploy attempt $i/$MAX_RETRIES (image: $IMAGE) ═══"
-          if OUTPUT=$(deploy 2>&1); then
-            echo "$OUTPUT"
-            # Extrai a URL do serviço para output
-            URL=$(echo "$OUTPUT" | jq -r '.status.url // empty')
+            echo "Deploy bem-sucedido!"
+            # Extrai a URL do serviço do JSON puro (stdout)
+            URL=$(echo "$OUTPUT" | jq -r '.status.url // empty' 2>/dev/null || true)
             if [ -n "$URL" ]; then
               echo "url=$URL" >> "$GITHUB_OUTPUT"
             fi
+            rm -f "$TMP_ERR"
             echo "::notice::Deploy concluído na tentativa $i."
             exit 0
           fi
-          echo "$OUTPUT"
-          if echo "$OUTPUT" | grep -qi "not found"; then
+
+          # Deploy falhou — mostra o stderr (progress + erro)
+          ERRORS=$(cat "$TMP_ERR")
+          echo "$ERRORS"
+          rm -f "$TMP_ERR"
+
+          if echo "$ERRORS" | grep -qi "not found"; then
             echo "::warning::Imagem ainda não propagada no mirror.gcr.io. Aguardando ${WAIT}s..."
             sleep $WAIT
             WAIT=$((WAIT + 15))
