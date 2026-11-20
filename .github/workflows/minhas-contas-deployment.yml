@@ -131,77 +131,125 @@ jobs:
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+    # ──────────────────────────────────────────────────────────────────────
+    # [GKE — DESATIVADO] Conexão e deploy no GKE mantidos COMENTADOS para
+    # consulta/rollback. A app agora roda no Cloud Run (bloco abaixo) e o
+    # banco é externo (Neon). Para reativar o GKE: descomente estes steps e
+    # comente o bloco "[Cloud Run — ATIVO]" logo a seguir.
+    # ──────────────────────────────────────────────────────────────────────
+    #
     # Obtém as credenciais do cluster (equivalente ao passo 3 que você faria manualmente)
-    - name: Get GKE Credentials
-      uses: google-github-actions/get-gke-credentials@v2
-      with:
-        cluster_name: ${{ secrets.GKE_CLUSTER }}
-        location: ${{ secrets.GKE_ZONE }}
-
+    # - name: Get GKE Credentials
+    #   uses: google-github-actions/get-gke-credentials@v2
+    #   with:
+    #     cluster_name: ${{ secrets.GKE_CLUSTER }}
+    #     location: ${{ secrets.GKE_ZONE }}
+    #
     # Cria/atualiza o Secret 'app-secrets' no cluster a partir dos GitHub Secrets.
     # Idempotente: kubectl create --dry-run | kubectl apply faz upsert (se já existe, substitui; se não, cria).
-    # Sem esse step, um cluster zerado não sobe: postgres/app falham com CreateContainerConfigError.
-    - name: Ensure app-secrets exists (idempotent upsert)
-      env:
-        DB_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-        SMTP_PASSWORD_VALUE: ${{ secrets.SMTP_PASSWORD }}
-      run: |
-        kubectl -n minhas-contas create secret generic app-secrets \
-          --from-literal=DATABASE_PASSWORD="$DB_PASSWORD" \
-          --from-literal=SMTP_PASSWORD="$SMTP_PASSWORD_VALUE" \
-          --dry-run=client -o yaml | kubectl apply -f -
-
+    # - name: Ensure app-secrets exists (idempotent upsert)
+    #   env:
+    #     DB_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+    #     SMTP_PASSWORD_VALUE: ${{ secrets.SMTP_PASSWORD }}
+    #   run: |
+    #     kubectl -n minhas-contas create secret generic app-secrets \
+    #       --from-literal=DATABASE_PASSWORD="$DB_PASSWORD" \
+    #       --from-literal=SMTP_PASSWORD="$SMTP_PASSWORD_VALUE" \
+    #       --dry-run=client -o yaml | kubectl apply -f -
+    #
     # Garante que o IP estático global existe ANTES de aplicar o Ingress.
-    # Idempotente: tenta criar e tolera especificamente o erro "already exists".
-    # (evita depender de compute.addresses.get/describe, que a SA gke-deployer
-    # normalmente não tem permissão; create usa compute.addresses.create, que
-    # a SA tem e responde com 409 "already exists" se o IP já estiver lá.)
-    - name: Ensure global static IP exists
-      run: |
-        OUT="$(gcloud compute addresses create minhas-contas-ip \
-                --global \
-                --description='IP publico app minhas-contas' 2>&1 || true)"
-        echo "$OUT"
-        if echo "$OUT" | grep -qi "already exists"; then
-          echo "IP estático 'minhas-contas-ip' já existe (ok, idempotente)."
-        elif echo "$OUT" | grep -qiE "(ERROR|FAILURE)"; then
-          echo "ERRO ao garantir o IP estático:"
-          echo "$OUT"
-          exit 1
-        else
-          echo "IP estático 'minhas-contas-ip' criado com sucesso."
-        fi
-
-
+    # - name: Ensure global static IP exists
+    #   run: |
+    #     OUT="$(gcloud compute addresses create minhas-contas-ip \
+    #             --global \
+    #             --description='IP publico app minhas-contas' 2>&1 || true)"
+    #     echo "$OUT"
+    #     if echo "$OUT" | grep -qi "already exists"; then
+    #       echo "IP estático 'minhas-contas-ip' já existe (ok, idempotente)."
+    #     elif echo "$OUT" | grep -qiE "(ERROR|FAILURE)"; then
+    #       echo "ERRO ao garantir o IP estático:"
+    #       echo "$OUT"
+    #       exit 1
+    #     else
+    #       echo "IP estático 'minhas-contas-ip' criado com sucesso."
+    #     fi
+    #
     # Aplica os manifests do Kubernetes
-    - name: Deploy to GKE
-      run: |
-        # Cria o namespace se não existir (idempotente)
-        kubectl apply -f sk8/namespace.yaml
-
-        # Aplica ConfigMap, Postgres, App, Service e Ingress
-        # (Secret 'app-secrets' já foi criado no step anterior)
-        kubectl apply -f sk8/configmap.yaml
-        kubectl apply -f sk8/postgres.yaml
-        kubectl apply -f sk8/app-deployment.yaml
-        kubectl apply -f sk8/app-service.yaml
-        kubectl apply -f sk8/ingress.yaml
-
+    # - name: Deploy to GKE
+    #   run: |
+    #     kubectl apply -f sk8/namespace.yaml
+    #     kubectl apply -f sk8/configmap.yaml
+    #     kubectl apply -f sk8/postgres.yaml
+    #     kubectl apply -f sk8/app-deployment.yaml
+    #     kubectl apply -f sk8/app-service.yaml
+    #     kubectl apply -f sk8/ingress.yaml
+    #
     # Fixa o deployment na tag SEMÂNTICA da imagem buildada (não usa :latest)
-    # Isso elimina o problema de cache do Docker Hub CDN quando :latest é atualizado.
-    # `kubectl set image` só dispara rolling update se o spec realmente mudar.
-    # Timeout 300s: Spring Boot + Flyway + Postgres cold start pode levar ~90s.
-    - name: Pin image to built version and wait rollout
-      run: |
-        kubectl set image deployment/minhas-contas \
-          app=loujrdocker/minhas-contas:${{ needs.build.outputs.tag }} \
-          -n minhas-contas
-        kubectl rollout status deployment/minhas-contas -n minhas-contas --timeout=300s
+    # - name: Pin image to built version and wait rollout
+    #   run: |
+    #     kubectl set image deployment/minhas-contas \
+    #       app=loujrdocker/minhas-contas:${{ needs.build.outputs.tag }} \
+    #       -n minhas-contas
+    #     kubectl rollout status deployment/minhas-contas -n minhas-contas --timeout=300s
+    #
+    # - name: Verify Pods
+    #   run: |
+    #     kubectl get pods -n minhas-contas
+    #     kubectl get ingress -n minhas-contas
 
-    # Aguarda o Postgres também estar saudável (útil em deploys do zero)
-    - name: Verify Pods
+    # ──────────────────────────────────────────────────────────────────────
+    # [Cloud Run — ATIVO] Deploy do app no Cloud Run, puxando a imagem do
+    # Docker Hub e usando o banco externo (Neon) injetado via Secret Manager.
+    # As secrets do Secret Manager equivalem ao antigo 'app-secrets' do GKE.
+    # ──────────────────────────────────────────────────────────────────────
+
+    # Cria/atualiza as secrets no Secret Manager a partir dos GitHub Secrets
+    # (DATABASE_URL, DATABASE_USER, DATABASE_PASSWORD). Idempotente: cria a
+    # entrada se não existir e sempre adiciona uma NOVA versão com o valor atual.
+    - name: Ensure Secret Manager entries exist
+      env:
+        DB_URL: ${{ secrets.DATABASE_URL }}
+        DB_USER: ${{ secrets.DATABASE_USER }}
+        DB_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
       run: |
-        kubectl get pods -n minhas-contas
-        kubectl get ingress -n minhas-contas
+        ensure_secret() {
+          local name="$1"; local value="$2"
+          if ! gcloud secrets describe "$name" >/dev/null 2>&1; then
+            printf '%s' "$value" | gcloud secrets create "$name" --data-file=-
+          fi
+          printf '%s' "$value" | gcloud secrets versions add "$name" --data-file=-
+        }
+        ensure_secret DATABASE_URL "$DB_URL"
+        ensure_secret DATABASE_USER "$DB_USER"
+        ensure_secret DATABASE_PASSWORD "$DB_PASSWORD"
+
+    # Deploy no Cloud Run. Imagem PÚBLICA do Docker Hub (docker.io/...).
+    # forward-headers-strategy=framework já vem fixo no application.yml.
+    - name: Deploy to Cloud Run
+      id: deploy
+      uses: google-github-actions/deploy-cloudrun@v2
+      with:
+        service: minhas-contas
+        region: ${{ secrets.CLOUD_RUN_REGION }}
+        image: docker.io/loujrdocker/minhas-contas:${{ needs.build.outputs.tag }}
+        # NÃO-sensíveis (vinham do ConfigMap). Mail desativado → sem SMTP_*.
+        env_vars: |-
+          COOKIE_SECURE=true
+          MAIL_ENABLED=false
+        # Sensíveis via Secret Manager. Formato: NOME_ENV=NOME_SECRET:VERSÃO
+        secrets: |-
+          DATABASE_URL=DATABASE_URL:latest
+          DATABASE_USER=DATABASE_USER:latest
+          DATABASE_PASSWORD=DATABASE_PASSWORD:latest
+        # Escala a zero (modelo grátis) + recursos (vinham de resources/replicas).
+        flags: >-
+          --memory 512Mi --cpu 1
+          --min-instances 0 --max-instances 1
+          --container-concurrency 10
+          --allow-unauthenticated
+
+    # A action expõe a URL do serviço no output 'url'.
+    - name: Show service URL
+      run: echo "Cloud Run URL: ${{ steps.deploy.outputs.url }}"
 
 
