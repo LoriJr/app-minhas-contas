@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test": "node --test src/recurrence.test.js"
+    "test": "node --test src/recurrence.test.js",
+    "format": "prettier --write \"src/**/*.{js,jsx,css}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,css}\""
   },
   "dependencies": {
     "react": "19.1.1",
@@ -13,6 +15,7 @@
     "lucide-react": "0.468.0"
   },
   "devDependencies": {
-    "vite": "6.4.1"
+    "vite": "6.4.1",
+    "prettier": "^3.3.3"
   }
 }
