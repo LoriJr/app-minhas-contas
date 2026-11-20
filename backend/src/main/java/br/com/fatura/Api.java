@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.boot.info.BuildProperties;
+import org.springframework.beans.factory.ObjectProvider;
 
 @RestController
 @RequestMapping("/api")
@@ -29,6 +31,13 @@ class Api {
         this.service = service;
         this.encoder = encoder;
         this.export = export;
+    }
+
+    @GetMapping("/version")
+    Map<String, Object> version(ObjectProvider<BuildProperties> info) {
+        BuildProperties build = info.getIfAvailable();
+        String v = build != null ? build.getVersion() : null;
+        return Map.of("version", v != null ? v : "dev");
     }
 
     record Registration(@NotBlank @Size(max = 100) String name, @Email @NotBlank @Size(max = 254) String email,

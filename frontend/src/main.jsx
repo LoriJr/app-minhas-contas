@@ -150,7 +150,8 @@ function App() {
     [busy, Busy] = S(false),
     [month, Month] = S(today().slice(0, 7)),
     [mobile, Mobile] = S(false),
-    [theme, Theme] = S(document.documentElement.dataset.theme || 'light');
+    [theme, Theme] = S(document.documentElement.dataset.theme || 'light'),
+    [version, SetVersion] = S('');
   E(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('fatura-theme', theme);
@@ -163,6 +164,12 @@ function App() {
       })
       .catch(() => {});
   }, []);
+  E(() => {
+    if (!user || demo) return;
+    api('/version')
+      .then(v => SetVersion(v?.version || ''))
+      .catch(() => {});
+  }, [user, demo]);
   E(() => {
     if (toast) {
       let t = setTimeout(() => T(''), 4000);
@@ -1047,6 +1054,7 @@ function App() {
             <span>
               Feito para o seu dia a dia <span className="tiny-dot" />
             </span>
+            {version && <span className="app-version">v{version}</span>}
           </footer>
         </div>
       </main>

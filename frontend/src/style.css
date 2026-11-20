@@ -693,6 +693,14 @@ footer > span:last-child {
   color: #97a68e;
   letter-spacing: -1px;
 }
+.app-version {
+  font: 600 12px Manrope;
+  color: #7f9487;
+  opacity: 0.85;
+}
+:root[data-theme='dark'] .app-version {
+  color: #6f9f80;
+}
 .tiny-dot {
   width: 4px;
   height: 4px;
