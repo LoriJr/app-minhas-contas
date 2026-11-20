@@ -1,32 +1,1236 @@
-import {projectDemo, editDemo, deleteDemo, migrateDemo} from './recurrence.js';
-import React,{useState as S,useEffect as E} from 'react';import{createRoot}from'react-dom/client';import{LayoutDashboard,Receipt,CalendarDays,Bell,Settings,Plus,Search,ArrowUpRight,ArrowDownRight,ChevronLeft,ChevronRight,Check,CheckCircle2,Clock,TriangleAlert,X,LogOut,Wallet,House,Zap,Droplets,Wifi,Car,Building2,Copy,Download,ShieldCheck,Menu,Sun,Moon}from'lucide-react';import './style.css';
-const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}),today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}),fmt=s=>new Date(s+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}),status=b=>b.paid?'Pago':b.due<today()?'Vencido':b.due===today()?'Vence hoje':'Em aberto',icons={Energia:Zap,Água:Droplets,Internet:Wifi,Moradia:House,Condomínio:Building2,Outros:Receipt};
-const seed=()=>{let d=today().slice(0,7);return[{id:'1',title:'Energia elétrica',category:'Energia',amount:186.42,due:d+'-10',source:'Enel',reminderDays:3},{id:'2',title:'Internet + celular',category:'Internet',amount:149.9,due:d+'-12',source:'Claro',reminderDays:3},{id:'3',title:'Aluguel da casa',category:'Moradia',amount:1800,due:d+'-05',source:'Contrato de aluguel',reminderDays:3},{id:'4',title:'Água e esgoto',category:'Água',amount:92.35,due:d+'-18',source:'Sabesp',reminderDays:3},{id:'5',title:'Condomínio',category:'Condomínio',amount:480,due:d+'-08',source:'Residencial Jardim',reminderDays:2},{id:'6',title:'Aluguel da garagem',category:'Outros',amount:220,due:d+'-03',source:'Garagem',paid:true,reminderDays:3}]};
-let csrf;async function api(path,method='GET',data,retry){if(!csrf){let r=await fetch('/api/csrf');if(!r.ok)throw Error('Backend indisponível. Inicie o servidor Java ou explore a demonstração.');csrf=await r.json()}let r=await fetch('/api'+path,{method,headers:{[csrf.header]:csrf.token,...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})});if(r.status===401&&method!=='GET'&&!retry){csrf=null;return api(path,method,data,true)}if(!r.ok)throw Error(r.status===401?'Sua sessão expirou. Recarregue a página e tente novamente.':r.status===409?'Este e-mail já está cadastrado.':'Não foi possível concluir. Verifique os campos e tente novamente.');if(r.status!==204&&r.headers.get('content-type')?.includes('json'))return r.json()}
-function App(){const[demo,D]=S(false),[user,U]=S(null),[remoteBills,B]=S([]),[demoData,DemoData]=S({series:[],occurrences:[]}),[page,P]=S('Visão geral'),[query,Q]=S(''),[filter,F]=S('Todas'),[modal,M]=S(null),[error,Err]=S(''),[toast,T]=S(''),[register,R]=S(false),[busy,Busy]=S(false),[month,Month]=S(today().slice(0,7)),[mobile,Mobile]=S(false),[theme,Theme]=S(document.documentElement.dataset.theme||'light');E(()=>{document.documentElement.dataset.theme=theme;localStorage.setItem('fatura-theme',theme)},[theme]);E(()=>{api('/me').then(async u=>{U(u);B(await api('/bills?month='+month))}).catch(()=>{})},[]);E(()=>{if(toast){let t=setTimeout(()=>T(''),4000);return()=>clearTimeout(t)}},[toast]);const bills=demo?projectDemo(demoData,month,today().slice(0,7)):remoteBills;
-E(()=>{if(demo)localStorage.setItem('fatura-recurring-demo',JSON.stringify(demoData))},[demoData,demo]);
-E(()=>{if(!user||demo)return;let canceled=false;api('/bills?month='+month).then(rows=>{if(!canceled)B(rows)}).catch(x=>{if(!canceled)T(x.message)});return()=>{canceled=true}},[month,user,demo]);
+import { projectDemo, editDemo, deleteDemo, migrateDemo } from './recurrence.js';
+import React, { useState as S, useEffect as E } from 'react';
+import { createRoot } from 'react-dom/client';
+import {
+  LayoutDashboard,
+  Receipt,
+  CalendarDays,
+  Bell,
+  Settings,
+  Plus,
+  Search,
+  ArrowUpRight,
+  ArrowDownRight,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  CheckCircle2,
+  Clock,
+  TriangleAlert,
+  X,
+  LogOut,
+  Wallet,
+  House,
+  Zap,
+  Droplets,
+  Wifi,
+  Car,
+  Building2,
+  Copy,
+  Download,
+  ShieldCheck,
+  Menu,
+  Sun,
+  Moon,
+} from 'lucide-react';
+import './style.css';
+const money = n => Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+  today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
+  fmt = s =>
+    new Date(s + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+  status = b =>
+    b.paid ? 'Pago' : b.due < today() ? 'Vencido' : b.due === today() ? 'Vence hoje' : 'Em aberto',
+  icons = {
+    Energia: Zap,
+    Água: Droplets,
+    Internet: Wifi,
+    Moradia: House,
+    Condomínio: Building2,
+    Outros: Receipt,
+  };
+const seed = () => {
+  let d = today().slice(0, 7);
+  return [
+    {
+      id: '1',
+      title: 'Energia elétrica',
+      category: 'Energia',
+      amount: 186.42,
+      due: d + '-10',
+      source: 'Enel',
+      reminderDays: 3,
+    },
+    {
+      id: '2',
+      title: 'Internet + celular',
+      category: 'Internet',
+      amount: 149.9,
+      due: d + '-12',
+      source: 'Claro',
+      reminderDays: 3,
+    },
+    {
+      id: '3',
+      title: 'Aluguel da casa',
+      category: 'Moradia',
+      amount: 1800,
+      due: d + '-05',
+      source: 'Contrato de aluguel',
+      reminderDays: 3,
+    },
+    {
+      id: '4',
+      title: 'Água e esgoto',
+      category: 'Água',
+      amount: 92.35,
+      due: d + '-18',
+      source: 'Sabesp',
+      reminderDays: 3,
+    },
+    {
+      id: '5',
+      title: 'Condomínio',
+      category: 'Condomínio',
+      amount: 480,
+      due: d + '-08',
+      source: 'Residencial Jardim',
+      reminderDays: 2,
+    },
+    {
+      id: '6',
+      title: 'Aluguel da garagem',
+      category: 'Outros',
+      amount: 220,
+      due: d + '-03',
+      source: 'Garagem',
+      paid: true,
+      reminderDays: 3,
+    },
+  ];
+};
+let csrf;
+async function api(path, method = 'GET', data, retry) {
+  if (!csrf) {
+    let r = await fetch('/api/csrf');
+    if (!r.ok)
+      throw Error('Backend indisponível. Inicie o servidor Java ou explore a demonstração.');
+    csrf = await r.json();
+  }
+  let r = await fetch('/api' + path, {
+    method,
+    headers: { [csrf.header]: csrf.token, ...(data ? { 'Content-Type': 'application/json' } : {}) },
+    ...(data ? { body: JSON.stringify(data) } : {}),
+  });
+  if (r.status === 401 && method !== 'GET' && !retry) {
+    csrf = null;
+    return api(path, method, data, true);
+  }
+  if (!r.ok)
+    throw Error(
+      r.status === 401
+        ? 'Sua sessão expirou. Recarregue a página e tente novamente.'
+        : r.status === 409
+          ? 'Este e-mail já está cadastrado.'
+          : 'Não foi possível concluir. Verifique os campos e tente novamente.',
+    );
+  if (r.status !== 204 && r.headers.get('content-type')?.includes('json')) return r.json();
+}
+function App() {
+  const [demo, D] = S(false),
+    [user, U] = S(null),
+    [remoteBills, B] = S([]),
+    [demoData, DemoData] = S({ series: [], occurrences: [] }),
+    [page, P] = S('Visão geral'),
+    [query, Q] = S(''),
+    [filter, F] = S('Todas'),
+    [modal, M] = S(null),
+    [error, Err] = S(''),
+    [toast, T] = S(''),
+    [register, R] = S(false),
+    [busy, Busy] = S(false),
+    [month, Month] = S(today().slice(0, 7)),
+    [mobile, Mobile] = S(false),
+    [theme, Theme] = S(document.documentElement.dataset.theme || 'light');
+  E(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('fatura-theme', theme);
+  }, [theme]);
+  E(() => {
+    api('/me')
+      .then(async u => {
+        U(u);
+        B(await api('/bills?month=' + month));
+      })
+      .catch(() => {});
+  }, []);
+  E(() => {
+    if (toast) {
+      let t = setTimeout(() => T(''), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
+  const bills = demo ? projectDemo(demoData, month, today().slice(0, 7)) : remoteBills;
+  E(() => {
+    if (demo) localStorage.setItem('fatura-recurring-demo', JSON.stringify(demoData));
+  }, [demoData, demo]);
+  E(() => {
+    if (!user || demo) return;
+    let canceled = false;
+    api('/bills?month=' + month)
+      .then(rows => {
+        if (!canceled) B(rows);
+      })
+      .catch(x => {
+        if (!canceled) T(x.message);
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [month, user, demo]);
 
-function explore(){let data;try{const saved=localStorage.getItem('fatura-recurring-demo');data=saved?JSON.parse(saved):migrateDemo(JSON.parse(localStorage.getItem('fatura-demo'))||seed());}catch{data=migrateDemo(seed())}DemoData(data);D(true);U({name:'Marina',email:'Demonstração local'});localStorage.removeItem('fatura-demo');}
+  function explore() {
+    let data;
+    try {
+      const saved = localStorage.getItem('fatura-recurring-demo');
+      data = saved
+        ? JSON.parse(saved)
+        : migrateDemo(JSON.parse(localStorage.getItem('fatura-demo')) || seed());
+    } catch {
+      data = migrateDemo(seed());
+    }
+    DemoData(data);
+    D(true);
+    U({ name: 'Marina', email: 'Demonstração local' });
+    localStorage.removeItem('fatura-demo');
+  }
 
-async function login(e){e.preventDefault();Busy(true);Err('');const d=Object.fromEntries(new FormData(e.target));try{if(register)await api('/register','POST',d);await api('/csrf');let r=await fetch('/api/login',{method:'POST',headers:{[csrf.header]:csrf.token,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({username:d.email,password:d.password})});if(!r.ok)throw Error('E-mail ou senha inválidos.');csrf=null;U(await api('/me'));B(await api('/bills?month='+month))}catch(x){Err(x.message)}finally{Busy(false)}}
-async function save(e){e.preventDefault();Busy(true);Err('');let v=Object.fromEntries(new FormData(e.target));v.amount=Number(v.amount);v.reminderDays=Number(v.reminderDays);v.dueDay=Number(v.dueDay);try{if(demo){if(modal.bill)DemoData(data=>editDemo(data,modal.bill,v,today().slice(0,7)));else DemoData(data=>({...data,series:[...data.series,{...v,id:crypto.randomUUID(),startMonth:today().slice(0,7)}]}));}else{await api(modal.bill?'/bills/'+modal.bill.id:'/bills',modal.bill?'PUT':'POST',v);B(await api('/bills?month='+(modal.bill?month:today().slice(0,7))))}if(!modal.bill)Month(today().slice(0,7));M(null);T('Conta mensal salva com sucesso')}catch(x){Err(x.message)}finally{Busy(false)}}
-async function toggle(b){Busy(true);try{if(demo)DemoData(data=>({...data,occurrences:[...data.occurrences.filter(x=>x.id!==b.id),{...b,paid:!b.paid}]}));else{await api('/bills/'+b.id+'/paid','POST');B(await api('/bills?month='+month))}M(null);T(b.paid?'Pagamento deste mês reaberto':'Pagamento deste mês registrado')}catch(x){Err(x.message)}finally{Busy(false)}}
-async function remove(b){Busy(true);try{if(demo)DemoData(data=>deleteDemo(data,b.recurringId));else{await api('/bills/'+b.id,'DELETE');B(await api('/bills?month='+month))}M(null);T('Conta mensal e histórico excluídos')}catch(x){Err(x.message)}finally{Busy(false)}}
-async function download(path,name){let r=await fetch('/api'+path,{credentials:'same-origin'});if(!r.ok)throw Error(r.status===401?'Faça login novamente para exportar.':r.status===400?'Selecione um mês válido.':'Não foi possível exportar agora.');let b=await r.blob();let u=URL.createObjectURL(b);let a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u)}
-async function exportPdf(){if(demo){T('Exportação disponível somente na sua conta.');return}Busy(true);try{await download('/export/pdf?month='+month,'extrato-'+month+'.pdf');T('Extrato em PDF gerado')}catch(x){T(x.message)}finally{Busy(false)}}
-async function exportCsv(){if(demo){T('Exportação disponível somente na sua conta.');return}Busy(true);try{await download('/export/csv','contas-minhas-contas.csv');T('Contas exportadas em CSV')}catch(x){T(x.message)}finally{Busy(false)}}
-async function importCsv(e){const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;if(demo){T('Importação disponível somente na sua conta.');return}Busy(true);try{if(!csrf){let c=await fetch('/api/csrf',{credentials:'same-origin'});csrf=await c.json()}let fd=new FormData();fd.append('file',f);let r=await fetch('/api/import/csv',{method:'POST',headers:{[csrf.header]:csrf.token},body:fd,credentials:'same-origin'});let res=await r.json().catch(()=>null);if(!r.ok)throw Error(res&&res.message?res.message:'Falha ao importar o arquivo.');B(await api('/bills?month='+month));T(res&&res.imported!=null?'Importação concluída: '+res.imported+' conta(s)'+(res.errors&&res.errors.length?', '+res.errors.length+' linha(s) ignorada(s)':''):'Contas importadas')}catch(x){T(x.message)}finally{Busy(false)}}
+  async function login(e) {
+    e.preventDefault();
+    Busy(true);
+    Err('');
+    const d = Object.fromEntries(new FormData(e.target));
+    try {
+      if (register) await api('/register', 'POST', d);
+      await api('/csrf');
+      let r = await fetch('/api/login', {
+        method: 'POST',
+        headers: { [csrf.header]: csrf.token, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ username: d.email, password: d.password }),
+      });
+      if (!r.ok) throw Error('E-mail ou senha inválidos.');
+      csrf = null;
+      U(await api('/me'));
+      B(await api('/bills?month=' + month));
+    } catch (x) {
+      Err(x.message);
+    } finally {
+      Busy(false);
+    }
+  }
+  async function save(e) {
+    e.preventDefault();
+    Busy(true);
+    Err('');
+    let v = Object.fromEntries(new FormData(e.target));
+    v.amount = Number(v.amount);
+    v.reminderDays = Number(v.reminderDays);
+    v.dueDay = Number(v.dueDay);
+    try {
+      if (demo) {
+        if (modal.bill) DemoData(data => editDemo(data, modal.bill, v, today().slice(0, 7)));
+        else
+          DemoData(data => ({
+            ...data,
+            series: [
+              ...data.series,
+              { ...v, id: crypto.randomUUID(), startMonth: today().slice(0, 7) },
+            ],
+          }));
+      } else {
+        await api(
+          modal.bill ? '/bills/' + modal.bill.id : '/bills',
+          modal.bill ? 'PUT' : 'POST',
+          v,
+        );
+        B(await api('/bills?month=' + (modal.bill ? month : today().slice(0, 7))));
+      }
+      if (!modal.bill) Month(today().slice(0, 7));
+      M(null);
+      T('Conta mensal salva com sucesso');
+    } catch (x) {
+      Err(x.message);
+    } finally {
+      Busy(false);
+    }
+  }
+  async function toggle(b) {
+    Busy(true);
+    try {
+      if (demo)
+        DemoData(data => ({
+          ...data,
+          occurrences: [...data.occurrences.filter(x => x.id !== b.id), { ...b, paid: !b.paid }],
+        }));
+      else {
+        await api('/bills/' + b.id + '/paid', 'POST');
+        B(await api('/bills?month=' + month));
+      }
+      M(null);
+      T(b.paid ? 'Pagamento deste mês reaberto' : 'Pagamento deste mês registrado');
+    } catch (x) {
+      Err(x.message);
+    } finally {
+      Busy(false);
+    }
+  }
+  async function remove(b) {
+    Busy(true);
+    try {
+      if (demo) DemoData(data => deleteDemo(data, b.recurringId));
+      else {
+        await api('/bills/' + b.id, 'DELETE');
+        B(await api('/bills?month=' + month));
+      }
+      M(null);
+      T('Conta mensal e histórico excluídos');
+    } catch (x) {
+      Err(x.message);
+    } finally {
+      Busy(false);
+    }
+  }
+  async function download(path, name) {
+    let r = await fetch('/api' + path, { credentials: 'same-origin' });
+    if (!r.ok)
+      throw Error(
+        r.status === 401
+          ? 'Faça login novamente para exportar.'
+          : r.status === 400
+            ? 'Selecione um mês válido.'
+            : 'Não foi possível exportar agora.',
+      );
+    let b = await r.blob();
+    let u = URL.createObjectURL(b);
+    let a = document.createElement('a');
+    a.href = u;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(u);
+  }
+  async function exportPdf() {
+    if (demo) {
+      T('Exportação disponível somente na sua conta.');
+      return;
+    }
+    Busy(true);
+    try {
+      await download('/export/pdf?month=' + month, 'extrato-' + month + '.pdf');
+      T('Extrato em PDF gerado');
+    } catch (x) {
+      T(x.message);
+    } finally {
+      Busy(false);
+    }
+  }
+  async function exportCsv() {
+    if (demo) {
+      T('Exportação disponível somente na sua conta.');
+      return;
+    }
+    Busy(true);
+    try {
+      await download('/export/csv', 'contas-minhas-contas.csv');
+      T('Contas exportadas em CSV');
+    } catch (x) {
+      T(x.message);
+    } finally {
+      Busy(false);
+    }
+  }
+  async function importCsv(e) {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (demo) {
+      T('Importação disponível somente na sua conta.');
+      return;
+    }
+    Busy(true);
+    try {
+      if (!csrf) {
+        let c = await fetch('/api/csrf', { credentials: 'same-origin' });
+        csrf = await c.json();
+      }
+      let fd = new FormData();
+      fd.append('file', f);
+      let r = await fetch('/api/import/csv', {
+        method: 'POST',
+        headers: { [csrf.header]: csrf.token },
+        body: fd,
+        credentials: 'same-origin',
+      });
+      let res = await r.json().catch(() => null);
+      if (!r.ok) throw Error(res && res.message ? res.message : 'Falha ao importar o arquivo.');
+      B(await api('/bills?month=' + month));
+      T(
+        res && res.imported != null
+          ? 'Importação concluída: ' +
+              res.imported +
+              ' conta(s)' +
+              (res.errors && res.errors.length
+                ? ', ' + res.errors.length + ' linha(s) ignorada(s)'
+                : '')
+          : 'Contas importadas',
+      );
+    } catch (x) {
+      T(x.message);
+    } finally {
+      Busy(false);
+    }
+  }
 
-const current=bills.filter(b=>b.billingMonth?.startsWith(month)),open=current.filter(b=>!b.paid),paid=current.filter(b=>b.paid),late=open.filter(b=>b.due<today()),sum=bs=>bs.reduce((n,b)=>n+Number(b.amount),0),shown=current.filter(b=>(b.title+' '+b.source+' '+b.category).toLowerCase().includes(query.toLowerCase())&&(filter==='Todas'||filter==='Pagas'&&b.paid||filter==='Em aberto'&&!b.paid||filter==='Vencidas'&&!b.paid&&b.due<today())),alerts=bills.filter(b=>!b.paid&&b.due<=new Date(Date.now()+b.reminderDays*86400000).toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}));function changeMonth(n){let d=new Date(month+'-15T12:00:00');d.setMonth(d.getMonth()+n);Month(d.toISOString().slice(0,7))}
-if(!user)return <div className="auth"><div className="auth-story"><div className="brand"><span>f</span> fatura<span className="brand-dot">.</span></div><div><p className="eyebrow">MAIS TRANQUILIDADE, TODOS OS MESES</p><h1>Suas contas.<br/>Seu controle.<br/><em>Tudo em dia.</em></h1><p>Um lugar para organizar pagamentos e cuidar do que realmente importa.</p><div className="auth-card"><ShieldCheck/><div><strong>Organização que acompanha você</strong><p>Em casa, no trabalho ou na palma da mão.</p></div></div></div><small>Feito para simplificar sua vida financeira.</small></div><div className="auth-form"><span className="mini-logo">fatura.</span><h2>{register?'Comece a se organizar':'Bom ter você por aqui'}</h2><p>{register?'Crie sua conta para começar.':'Entre para acompanhar suas contas.'}</p><form onSubmit={login}>{register&&<label>Seu nome<input name="name" required maxLength="100" autoComplete="name"/></label>}<label>E-mail<input name="email" type="email" required autoComplete="email" placeholder="voce@exemplo.com"/></label><label>Senha<input name="password" type="password" required minLength={register?12:1} maxLength="72" autoComplete={register?'new-password':'current-password'} placeholder={register?'No mínimo 12 caracteres':'Sua senha'}/></label>{error&&<p className="error" role="alert">{error}</p>}<button className="primary" disabled={busy}>{busy?'Aguarde…':register?'Criar conta':'Entrar na minha conta'}<ArrowUpRight size={18}/></button></form><p>{register?'Já tem conta?':'Ainda não tem conta?'} <button className="link" onClick={()=>{R(!register);Err('')}}>{register?'Entrar':'Cadastre-se'}</button></p><div className="divider">ou conheça primeiro</div><button className="outline full" onClick={explore}>Explorar demonstração</button><small className="muted">A demonstração usa dados fictícios salvos neste navegador.</small></div></div>;
-return <div className="app"><aside className={mobile?'sidebar visible':'sidebar'}><div className="brand"><span>f</span> fatura<span className="brand-dot">.</span></div><p className="nav-label">SEU ESPAÇO FINANCEIRO</p><nav>{[[LayoutDashboard,'Visão geral'],[Receipt,'Minhas contas'],[CalendarDays,'Calendário'],[Bell,'Lembretes'],[Settings,'Configurações']].map(([Icon,n])=><button key={n} className={page===n?'active':''} onClick={()=>{P(n);Mobile(false)}}><Icon size={19}/>{n}{n==='Lembretes'&&alerts.length>0&&<b>{alerts.length}</b>}</button>)}</nav><div className="sidebar-tip"><div className="tip-icon"><ShieldCheck size={23}/></div><strong>Um passo à frente</strong><p>Organize hoje. Respire tranquilo amanhã.</p><span>Suas contas, sob controle <ArrowUpRight size={14}/></span></div><button className="theme-toggle" aria-label="Alternar tema claro e escuro" title={theme==='dark'?'Modo claro':'Modo escuro'} onClick={()=>Theme(theme==='dark'?'light':'dark')}>{theme==='dark'?<Sun size={16}/>:<Moon size={16}/>}Tema</button><button className="profile" title="Clique para sair" aria-label="Sair da minha conta" onClick={async()=>{if(!demo)await api('/logout','POST');U(null);B([]);D(false);csrf=null;Err('')}}><span className="avatar">{user.name[0]}</span><div><strong>{user.name}</strong><small>{demo?'Conta de demonstração':'Minha conta'}</small></div><span className="logout-hint">Sair</span><LogOut size={15}/></button></aside><main><header><div className="breadcrumb"><button className="icon mobile-menu" onClick={()=>Mobile(!mobile)} aria-label="Abrir menu"><Menu/></button>Meu espaço <span>/</span> <strong>{page}</strong></div><div className="header-right"><span className="today">{new Date().toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric',timeZone:'America/Sao_Paulo'})}</span><button className="notification icon" onClick={()=>P('Lembretes')} aria-label="Lembretes"><Bell size={20}/>{alerts.length>0&&<i/>}</button><span className="avatar">{user.name[0]}</span></div></header><div className="content">{demo&&<div className="demo-banner">Modo demonstração · dados fictícios neste navegador · pagamentos e e-mails não são enviados.</div>}<div className="page-title"><div><p className="eyebrow">SEU DINHEIRO, COM MAIS CLAREZA</p><h1>{page==='Visão geral'?`Olá, ${user.name.split(' ')[0]}!` :page}<span className="hello">{page==='Visão geral'?' ☀':''}</span></h1><p>{page==='Visão geral'?'Tudo o que você precisa para manter suas contas em dia.':'Organize seus pagamentos com tranquilidade.'}</p></div><button className="primary" onClick={()=>{Err('');M({kind:'form'})}}><Plus size={18}/> Nova conta mensal</button></div>
-{['Visão geral','Minhas contas','Calendário'].includes(page)&&<><div className="section-top"><h3>{page==='Calendário'?'Agenda de pagamentos':'Resumo do mês'} <span>Acompanhe seu planejamento</span></h3><div className="month"><button onClick={()=>changeMonth(-1)} aria-label="Mês anterior"><ChevronLeft size={16}/></button>{new Date(month+'-15').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}<button onClick={()=>changeMonth(1)} aria-label="Próximo mês"><ChevronRight size={16}/></button></div><div style={{display:'flex',gap:8,marginLeft:'auto'}}><button className="outline" onClick={exportPdf} disabled={busy} title="Exportar extrato do mês (PDF)" aria-label="Exportar extrato do mês em PDF"><Download size={16}/>PDF</button><button className="outline" onClick={exportCsv} disabled={busy} title="Exportar contas em CSV" aria-label="Exportar contas em CSV"><Download size={16}/>CSV</button></div></div><div className="stats">{[[Wallet,'Total do mês',sum(current),`${current.length} contas neste mês`,'green'],[Clock,'Em aberto',sum(open),`${open.length} contas aguardando pagamento`,'amber'],[CheckCircle2,'Pagas',sum(paid),`${paid.length} contas já resolvidas`,'mint'],[TriangleAlert,'Vencidas',sum(late),late.length?'Vamos colocar em dia?':'Nenhuma conta vencida','rose']].map(([Icon,label,value,note,color])=><div className={'stat '+color} key={label}><div><span>{label}</span><i><Icon size={19}/></i></div><strong>{money(value)}</strong><small>{note}</small></div>)}</div></>}
-{page==='Visão geral'&&<div className="overview-row"><section className="payment-progress"><div><span className="round-icon"><Check size={22}/></span><div><h3>Seu mês está caminhando</h3><p>{paid.length} de {current.length} contas pagas. Cada conta em dia é mais tranquilidade.</p></div><strong>{current.length?Math.round(paid.length/current.length*100):0}%</strong></div><div className="progress"><i style={{width:(current.length?paid.length/current.length*100:0)+'%'}}/></div></section><section className="next-due"><CalendarDays size={25}/><div><small>PRÓXIMO VENCIMENTO</small><strong>{open.filter(b=>b.due>=today()).sort((a,b)=>a.due.localeCompare(b.due))[0]?.title||'Nenhuma conta futura'}</strong><span>{open.filter(b=>b.due>=today()).sort((a,b)=>a.due.localeCompare(b.due))[0]?.due?fmt(open.filter(b=>b.due>=today()).sort((a,b)=>a.due.localeCompare(b.due))[0].due):'Tudo organizado por aqui'}</span></div><ArrowUpRight size={18}/></section></div>}
-{['Visão geral','Minhas contas'].includes(page)&&<section className="table-card"><div className="table-heading"><div><h2>Suas contas</h2><p>Pequenos compromissos, todos em um só lugar.</p></div><div className="search"><Search size={17}/><input placeholder="Buscar conta ou empresa" aria-label="Buscar conta" value={query} onChange={e=>Q(e.target.value)}/></div></div><div className="tabs">{['Todas','Em aberto','Pagas','Vencidas'].map(n=><button className={filter===n?'selected':''} key={n} onClick={()=>F(n)}>{n}{n==='Todas'&&<span>{current.length}</span>}</button>)}</div><div className="table-scroll"><table><thead><tr><th>CONTA / EMPRESA</th><th>VENCIMENTO</th><th>VALOR</th><th>STATUS</th><th></th></tr></thead><tbody>{shown.sort((a,b)=>a.due.localeCompare(b.due)).map(b=>{let Icon=icons[b.category]||Receipt;return <tr key={b.id}><td><div className="bill-name"><span className={'bill-icon '+b.category}><Icon size={20}/></span><div><strong>{b.title}</strong><small>{b.source||b.category}</small></div></div></td><td>{fmt(b.due)}<small>{b.due.slice(0,4)}</small></td><td className="amount">{money(b.amount)}</td><td><span className={'badge '+(b.paid?'paid':b.due<today()?'late':'pending')}><i/>{status(b)}</span></td><td><button className="row-action" onClick={()=>{Err('');M({kind:'detail',bill:b})}}>Ver conta <ArrowUpRight size={15}/></button></td></tr>})}</tbody></table>{shown.length===0&&<div className="empty"><Receipt/><h3>Nenhuma conta por aqui</h3><p>Adicione uma conta ou ajuste os filtros.</p></div>}</div><div className="table-foot"><span>{shown.length} contas encontradas</span><span><ShieldCheck size={14}/> Organize. Confira. Pague com tranquilidade.</span></div></section>}
-{page==='Calendário'&&<section className="table-card agenda">{[...current].sort((a,b)=>a.due.localeCompare(b.due)).map(b=><button key={b.id} onClick={()=>M({kind:'detail',bill:b})}><span className="date-block">{b.due.slice(-2)}<small>{fmt(b.due).split(' ').slice(1).join(' ')}</small></span><div><strong>{b.title}</strong><small>{b.source} · {status(b)}</small></div><b>{money(b.amount)}</b><ArrowUpRight size={18}/></button>)}{!current.length&&<p>Nenhum vencimento neste mês.</p>}</section>}
-{page==='Lembretes'&&<section className="table-card reminders"><div className="table-heading"><div><h2>Não deixe para depois</h2><p>Lembretes próximos ao vencimento e avisos de contas atrasadas.</p></div><Bell/></div>{alerts.length?alerts.map(b=><div className="reminder" key={b.id}><span className={'bill-icon '+(b.due<today()?'red':'')}><Bell size={20}/></span><div><strong>{b.title}</strong><p>{b.due<today()?'Conta vencida em ':'Vencimento em '}{fmt(b.due)} · {money(b.amount)}</p></div><button className="outline" onClick={()=>M({kind:'detail',bill:b})}>Ver conta</button></div>):<div className="empty"><CheckCircle2/><h3>Tudo em dia</h3><p>Seus próximos avisos aparecerão aqui.</p></div>}<p className="notice">Os avisos deste painel são calculados ao abrir o app. E-mails automáticos exigem SMTP configurado no servidor. Não há alarme sonoro ou push em segundo plano nesta versão.</p></section>}
-{page==='Configurações'&&<section className="table-card settings"><h2>Sua conta</h2><label>Nome<input value={user.name} readOnly/></label><label>E-mail<input value={user.email} readOnly/></label><h3>Lembretes de pagamento</h3><p>Escolha a antecedência ao cadastrar cada conta. O servidor pode enviar um e-mail diário desde essa data até o registro do pagamento, inclusive após o vencimento.</p><h3>Contas mensais</h3><p>Cadastre o dia do vencimento uma vez. A conta se repete em todos os meses a partir do cadastro, até ser excluída. Cada mês tem seu próprio pagamento. Valores variáveis podem ser ajustados em Editar detalhes; a alteração também atualiza os próximos meses em aberto. Excluir uma conta apaga a recorrência inteira e seu histórico.</p><h3>Web e celular</h3><p>Use “Adicionar à tela inicial” no navegador do celular para abrir o app como um aplicativo. É necessária conexão à internet.</p><h3>Exportar e importar</h3><p>Exporte suas contas recorrentes em CSV (para backup ou para importar em outra conta) e um extrato do mês em PDF. A importação cria as contas no seu usuário; os pagamentos continuam sendo registrados mês a mês.</p><div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}><button className="outline" onClick={exportPdf} disabled={busy}><Download size={16}/>Extrato do mês (PDF)</button><button className="outline" onClick={exportCsv} disabled={busy}><Download size={16}/>Contas (CSV)</button><label className="outline" style={{display:'inline-flex',alignItems:'center',gap:6,cursor:'pointer'}}><Copy size={16}/>Importar CSV<input type="file" accept=".csv,text/csv" style={{display:'none'}} disabled={busy} onChange={importCsv}/></label></div></section>}
-<footer><span className="footer-logo">fatura.</span><span>Mais organização. Menos preocupação.</span><span>Feito para o seu dia a dia <span className="tiny-dot"/></span></footer></div></main>{toast&&<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}</div>}
-{modal&&<div className="overlay" onClick={()=>{if(!busy)M(null)}}><section className="modal" role="dialog" aria-modal="true" aria-label={modal.kind==='form'?'Cadastrar conta mensal':'Detalhes da conta mensal'} onClick={e=>e.stopPropagation()}><button className="close icon" aria-label="Fechar" disabled={busy} onClick={()=>M(null)}><X/></button>{modal.kind==='form'?<><p className="eyebrow">TUDO SOB CONTROLE</p><h2>{modal.bill?'Editar conta mensal':'Uma nova conta mensal'}</h2><p>{modal.bill?'As alterações valem para este mês e os próximos meses em aberto. Meses anteriores são preservados.':'Cadastre uma vez. A conta aparecerá todos os meses, a partir do mês corrente, até você excluí-la.'}</p><form onSubmit={save}><label>Nome da conta<input name="title" required maxLength="120" defaultValue={modal.bill?.title} placeholder="Ex.: Aluguel da casa"/></label><div className="form-grid"><label>Categoria<select name="category" defaultValue={modal.bill?.category||'Moradia'}>{Object.keys(icons).map(n=><option key={n}>{n}</option>)}</select></label><label>Valor (R$)<input name="amount" type="number" required min="0.01" step="0.01" max="999999999999.99" defaultValue={modal.bill?.amount}/></label><label>Dia do vencimento<input name="dueDay" type="number" required min="1" max="31" step="1" defaultValue={modal.bill?.dueDay||Number(today().slice(-2))}/></label><label>Lembrar antes<select name="reminderDays" defaultValue={modal.bill?.reminderDays??3}>{[0,1,2,3,5,7,15,30].map(n=><option key={n} value={n}>{n===0?'No dia':n+' dias antes'}</option>)}</select></label></div><label>Empresa / beneficiário / origem<input name="source" maxLength="200" defaultValue={modal.bill?.source} placeholder="Ex.: Enel ou contrato de aluguel"/></label><p className="notice">A conta se repete mensalmente sem prazo final. Em meses mais curtos, o vencimento será no último dia. Confira os valores a cada mês; o pagamento é registrado separadamente.</p>{error&&<p className="error" role="alert">{error}</p>}<button className="primary full" disabled={busy}>{busy?'Salvando…':'Salvar conta'}<Check size={18}/></button></form></>:<><span className="bill-icon"><Receipt/></span><h2>{modal.bill.title}</h2><p>{modal.bill.source} · {modal.bill.category}</p><div className="detail-amount">{money(modal.bill.amount)}</div><div className="detail-line"><span>Vencimento deste mês</span><strong>{fmt(modal.bill.due)} / {modal.bill.due.slice(0,4)}</strong></div><div className="detail-line"><span>Recorrência</span><strong>Todo dia {modal.bill.dueDay}</strong></div><div className="detail-line"><span>Situação deste mês</span><strong>{status(modal.bill)}</strong></div><div className="detail-line"><span>Lembrete</span><strong>{modal.bill.reminderDays} dias antes</strong></div>{error&&<p className="error">{error}</p>}<button className="primary full" disabled={busy} onClick={()=>toggle(modal.bill)}><CheckCircle2 size={18}/>{modal.bill.paid?'Reabrir pagamento deste mês':'Registrar este mês como pago'}</button><p className="muted small">Registro manual. Nenhum pagamento será executado.</p><div className="modal-actions"><button className="link" onClick={()=>M({kind:'form',bill:modal.bill})}>Editar detalhes</button><button className="danger" onClick={()=>M({kind:'delete',bill:modal.bill})}>Excluir conta mensal</button></div>{modal.kind==='delete'&&<div className="delete-confirm"><strong>Excluir a conta de todos os meses e todo o histórico de pagamentos? Esta ação não pode ser desfeita.</strong><button className="danger" disabled={busy} onClick={()=>remove(modal.bill)}>Excluir recorrência e histórico</button></div>}</>}</section></div>}</div>}
-createRoot(document.getElementById('root')).render(<App/>);
+  const current = bills.filter(b => b.billingMonth?.startsWith(month)),
+    open = current.filter(b => !b.paid),
+    paid = current.filter(b => b.paid),
+    late = open.filter(b => b.due < today()),
+    sum = bs => bs.reduce((n, b) => n + Number(b.amount), 0),
+    shown = current.filter(
+      b =>
+        (b.title + ' ' + b.source + ' ' + b.category).toLowerCase().includes(query.toLowerCase()) &&
+        (filter === 'Todas' ||
+          (filter === 'Pagas' && b.paid) ||
+          (filter === 'Em aberto' && !b.paid) ||
+          (filter === 'Vencidas' && !b.paid && b.due < today())),
+    ),
+    alerts = bills.filter(
+      b =>
+        !b.paid &&
+        b.due <=
+          new Date(Date.now() + b.reminderDays * 86400000).toLocaleDateString('en-CA', {
+            timeZone: 'America/Sao_Paulo',
+          }),
+    );
+  function changeMonth(n) {
+    let d = new Date(month + '-15T12:00:00');
+    d.setMonth(d.getMonth() + n);
+    Month(d.toISOString().slice(0, 7));
+  }
+  if (!user)
+    return (
+      <div className="auth">
+        <div className="auth-story">
+          <div className="brand">
+            <span>f</span> fatura<span className="brand-dot">.</span>
+          </div>
+          <div>
+            <p className="eyebrow">MAIS TRANQUILIDADE, TODOS OS MESES</p>
+            <h1>
+              Suas contas.
+              <br />
+              Seu controle.
+              <br />
+              <em>Tudo em dia.</em>
+            </h1>
+            <p>Um lugar para organizar pagamentos e cuidar do que realmente importa.</p>
+            <div className="auth-card">
+              <ShieldCheck />
+              <div>
+                <strong>Organização que acompanha você</strong>
+                <p>Em casa, no trabalho ou na palma da mão.</p>
+              </div>
+            </div>
+          </div>
+          <small>Feito para simplificar sua vida financeira.</small>
+        </div>
+        <div className="auth-form">
+          <span className="mini-logo">fatura.</span>
+          <h2>{register ? 'Comece a se organizar' : 'Bom ter você por aqui'}</h2>
+          <p>{register ? 'Crie sua conta para começar.' : 'Entre para acompanhar suas contas.'}</p>
+          <form onSubmit={login}>
+            {register && (
+              <label>
+                Seu nome
+                <input name="name" required maxLength="100" autoComplete="name" />
+              </label>
+            )}
+            <label>
+              E-mail
+              <input
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="voce@exemplo.com"
+              />
+            </label>
+            <label>
+              Senha
+              <input
+                name="password"
+                type="password"
+                required
+                minLength={register ? 12 : 1}
+                maxLength="72"
+                autoComplete={register ? 'new-password' : 'current-password'}
+                placeholder={register ? 'No mínimo 12 caracteres' : 'Sua senha'}
+              />
+            </label>
+            {error && (
+              <p className="error" role="alert">
+                {error}
+              </p>
+            )}
+            <button className="primary" disabled={busy}>
+              {busy ? 'Aguarde…' : register ? 'Criar conta' : 'Entrar na minha conta'}
+              <ArrowUpRight size={18} />
+            </button>
+          </form>
+          <p>
+            {register ? 'Já tem conta?' : 'Ainda não tem conta?'}{' '}
+            <button
+              className="link"
+              onClick={() => {
+                R(!register);
+                Err('');
+              }}
+            >
+              {register ? 'Entrar' : 'Cadastre-se'}
+            </button>
+          </p>
+          <div className="divider">ou conheça primeiro</div>
+          <button className="outline full" onClick={explore}>
+            Explorar demonstração
+          </button>
+          <small className="muted">
+            A demonstração usa dados fictícios salvos neste navegador.
+          </small>
+        </div>
+      </div>
+    );
+  return (
+    <div className="app">
+      <aside className={mobile ? 'sidebar visible' : 'sidebar'}>
+        <div className="brand">
+          <span>f</span> fatura<span className="brand-dot">.</span>
+        </div>
+        <p className="nav-label">SEU ESPAÇO FINANCEIRO</p>
+        <nav>
+          {[
+            [LayoutDashboard, 'Visão geral'],
+            [Receipt, 'Minhas contas'],
+            [CalendarDays, 'Calendário'],
+            [Bell, 'Lembretes'],
+            [Settings, 'Configurações'],
+          ].map(([Icon, n]) => (
+            <button
+              key={n}
+              className={page === n ? 'active' : ''}
+              onClick={() => {
+                P(n);
+                Mobile(false);
+              }}
+            >
+              <Icon size={19} />
+              {n}
+              {n === 'Lembretes' && alerts.length > 0 && <b>{alerts.length}</b>}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-tip">
+          <div className="tip-icon">
+            <ShieldCheck size={23} />
+          </div>
+          <strong>Um passo à frente</strong>
+          <p>Organize hoje. Respire tranquilo amanhã.</p>
+          <span>
+            Suas contas, sob controle <ArrowUpRight size={14} />
+          </span>
+        </div>
+        <button
+          className="theme-toggle"
+          aria-label="Alternar tema claro e escuro"
+          title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+          onClick={() => Theme(theme === 'dark' ? 'light' : 'dark')}
+        >
+          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}Tema
+        </button>
+        <button
+          className="profile"
+          title="Clique para sair"
+          aria-label="Sair da minha conta"
+          onClick={async () => {
+            if (!demo) await api('/logout', 'POST');
+            U(null);
+            B([]);
+            D(false);
+            csrf = null;
+            Err('');
+          }}
+        >
+          <span className="avatar">{user.name[0]}</span>
+          <div>
+            <strong>{user.name}</strong>
+            <small>{demo ? 'Conta de demonstração' : 'Minha conta'}</small>
+          </div>
+          <span className="logout-hint">Sair</span>
+          <LogOut size={15} />
+        </button>
+      </aside>
+      <main>
+        <header>
+          <div className="breadcrumb">
+            <button
+              className="icon mobile-menu"
+              onClick={() => Mobile(!mobile)}
+              aria-label="Abrir menu"
+            >
+              <Menu />
+            </button>
+            Meu espaço <span>/</span> <strong>{page}</strong>
+          </div>
+          <div className="header-right">
+            <span className="today">
+              {new Date().toLocaleDateString('pt-BR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'America/Sao_Paulo',
+              })}
+            </span>
+            <button
+              className="notification icon"
+              onClick={() => P('Lembretes')}
+              aria-label="Lembretes"
+            >
+              <Bell size={20} />
+              {alerts.length > 0 && <i />}
+            </button>
+            <span className="avatar">{user.name[0]}</span>
+          </div>
+        </header>
+        <div className="content">
+          {demo && (
+            <div className="demo-banner">
+              Modo demonstração · dados fictícios neste navegador · pagamentos e e-mails não são
+              enviados.
+            </div>
+          )}
+          <div className="page-title">
+            <div>
+              <p className="eyebrow">SEU DINHEIRO, COM MAIS CLAREZA</p>
+              <h1>
+                {page === 'Visão geral' ? `Olá, ${user.name.split(' ')[0]}!` : page}
+                <span className="hello">{page === 'Visão geral' ? ' ☀' : ''}</span>
+              </h1>
+              <p>
+                {page === 'Visão geral'
+                  ? 'Tudo o que você precisa para manter suas contas em dia.'
+                  : 'Organize seus pagamentos com tranquilidade.'}
+              </p>
+            </div>
+            <button
+              className="primary"
+              onClick={() => {
+                Err('');
+                M({ kind: 'form' });
+              }}
+            >
+              <Plus size={18} /> Nova conta mensal
+            </button>
+          </div>
+          {['Visão geral', 'Minhas contas', 'Calendário'].includes(page) && (
+            <>
+              <div className="section-top">
+                <h3>
+                  {page === 'Calendário' ? 'Agenda de pagamentos' : 'Resumo do mês'}{' '}
+                  <span>Acompanhe seu planejamento</span>
+                </h3>
+                <div className="month">
+                  <button onClick={() => changeMonth(-1)} aria-label="Mês anterior">
+                    <ChevronLeft size={16} />
+                  </button>
+                  {new Date(month + '-15').toLocaleDateString('pt-BR', {
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                  <button onClick={() => changeMonth(1)} aria-label="Próximo mês">
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                  <button
+                    className="outline"
+                    onClick={exportPdf}
+                    disabled={busy}
+                    title="Exportar extrato do mês (PDF)"
+                    aria-label="Exportar extrato do mês em PDF"
+                  >
+                    <Download size={16} />
+                    PDF
+                  </button>
+                  <button
+                    className="outline"
+                    onClick={exportCsv}
+                    disabled={busy}
+                    title="Exportar contas em CSV"
+                    aria-label="Exportar contas em CSV"
+                  >
+                    <Download size={16} />
+                    CSV
+                  </button>
+                </div>
+              </div>
+              <div className="stats">
+                {[
+                  [
+                    Wallet,
+                    'Total do mês',
+                    sum(current),
+                    `${current.length} contas neste mês`,
+                    'green',
+                  ],
+                  [
+                    Clock,
+                    'Em aberto',
+                    sum(open),
+                    `${open.length} contas aguardando pagamento`,
+                    'amber',
+                  ],
+                  [CheckCircle2, 'Pagas', sum(paid), `${paid.length} contas já resolvidas`, 'mint'],
+                  [
+                    TriangleAlert,
+                    'Vencidas',
+                    sum(late),
+                    late.length ? 'Vamos colocar em dia?' : 'Nenhuma conta vencida',
+                    'rose',
+                  ],
+                ].map(([Icon, label, value, note, color]) => (
+                  <div className={'stat ' + color} key={label}>
+                    <div>
+                      <span>{label}</span>
+                      <i>
+                        <Icon size={19} />
+                      </i>
+                    </div>
+                    <strong>{money(value)}</strong>
+                    <small>{note}</small>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {page === 'Visão geral' && (
+            <div className="overview-row">
+              <section className="payment-progress">
+                <div>
+                  <span className="round-icon">
+                    <Check size={22} />
+                  </span>
+                  <div>
+                    <h3>Seu mês está caminhando</h3>
+                    <p>
+                      {paid.length} de {current.length} contas pagas. Cada conta em dia é mais
+                      tranquilidade.
+                    </p>
+                  </div>
+                  <strong>
+                    {current.length ? Math.round((paid.length / current.length) * 100) : 0}%
+                  </strong>
+                </div>
+                <div className="progress">
+                  <i
+                    style={{
+                      width: (current.length ? (paid.length / current.length) * 100 : 0) + '%',
+                    }}
+                  />
+                </div>
+              </section>
+              <section className="next-due">
+                <CalendarDays size={25} />
+                <div>
+                  <small>PRÓXIMO VENCIMENTO</small>
+                  <strong>
+                    {open
+                      .filter(b => b.due >= today())
+                      .sort((a, b) => a.due.localeCompare(b.due))[0]?.title ||
+                      'Nenhuma conta futura'}
+                  </strong>
+                  <span>
+                    {open
+                      .filter(b => b.due >= today())
+                      .sort((a, b) => a.due.localeCompare(b.due))[0]?.due
+                      ? fmt(
+                          open
+                            .filter(b => b.due >= today())
+                            .sort((a, b) => a.due.localeCompare(b.due))[0].due,
+                        )
+                      : 'Tudo organizado por aqui'}
+                  </span>
+                </div>
+                <ArrowUpRight size={18} />
+              </section>
+            </div>
+          )}
+          {['Visão geral', 'Minhas contas'].includes(page) && (
+            <section className="table-card">
+              <div className="table-heading">
+                <div>
+                  <h2>Suas contas</h2>
+                  <p>Pequenos compromissos, todos em um só lugar.</p>
+                </div>
+                <div className="search">
+                  <Search size={17} />
+                  <input
+                    placeholder="Buscar conta ou empresa"
+                    aria-label="Buscar conta"
+                    value={query}
+                    onChange={e => Q(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="tabs">
+                {['Todas', 'Em aberto', 'Pagas', 'Vencidas'].map(n => (
+                  <button className={filter === n ? 'selected' : ''} key={n} onClick={() => F(n)}>
+                    {n}
+                    {n === 'Todas' && <span>{current.length}</span>}
+                  </button>
+                ))}
+              </div>
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>CONTA / EMPRESA</th>
+                      <th>VENCIMENTO</th>
+                      <th>VALOR</th>
+                      <th>STATUS</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown
+                      .sort((a, b) => a.due.localeCompare(b.due))
+                      .map(b => {
+                        let Icon = icons[b.category] || Receipt;
+                        return (
+                          <tr key={b.id}>
+                            <td>
+                              <div className="bill-name">
+                                <span className={'bill-icon ' + b.category}>
+                                  <Icon size={20} />
+                                </span>
+                                <div>
+                                  <strong>{b.title}</strong>
+                                  <small>{b.source || b.category}</small>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              {fmt(b.due)}
+                              <small>{b.due.slice(0, 4)}</small>
+                            </td>
+                            <td className="amount">{money(b.amount)}</td>
+                            <td>
+                              <span
+                                className={
+                                  'badge ' +
+                                  (b.paid ? 'paid' : b.due < today() ? 'late' : 'pending')
+                                }
+                              >
+                                <i />
+                                {status(b)}
+                              </span>
+                            </td>
+                            <td>
+                              <button
+                                className="row-action"
+                                onClick={() => {
+                                  Err('');
+                                  M({ kind: 'detail', bill: b });
+                                }}
+                              >
+                                Ver conta <ArrowUpRight size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+                {shown.length === 0 && (
+                  <div className="empty">
+                    <Receipt />
+                    <h3>Nenhuma conta por aqui</h3>
+                    <p>Adicione uma conta ou ajuste os filtros.</p>
+                  </div>
+                )}
+              </div>
+              <div className="table-foot">
+                <span>{shown.length} contas encontradas</span>
+                <span>
+                  <ShieldCheck size={14} /> Organize. Confira. Pague com tranquilidade.
+                </span>
+              </div>
+            </section>
+          )}
+          {page === 'Calendário' && (
+            <section className="table-card agenda">
+              {[...current]
+                .sort((a, b) => a.due.localeCompare(b.due))
+                .map(b => (
+                  <button key={b.id} onClick={() => M({ kind: 'detail', bill: b })}>
+                    <span className="date-block">
+                      {b.due.slice(-2)}
+                      <small>{fmt(b.due).split(' ').slice(1).join(' ')}</small>
+                    </span>
+                    <div>
+                      <strong>{b.title}</strong>
+                      <small>
+                        {b.source} · {status(b)}
+                      </small>
+                    </div>
+                    <b>{money(b.amount)}</b>
+                    <ArrowUpRight size={18} />
+                  </button>
+                ))}
+              {!current.length && <p>Nenhum vencimento neste mês.</p>}
+            </section>
+          )}
+          {page === 'Lembretes' && (
+            <section className="table-card reminders">
+              <div className="table-heading">
+                <div>
+                  <h2>Não deixe para depois</h2>
+                  <p>Lembretes próximos ao vencimento e avisos de contas atrasadas.</p>
+                </div>
+                <Bell />
+              </div>
+              {alerts.length ? (
+                alerts.map(b => (
+                  <div className="reminder" key={b.id}>
+                    <span className={'bill-icon ' + (b.due < today() ? 'red' : '')}>
+                      <Bell size={20} />
+                    </span>
+                    <div>
+                      <strong>{b.title}</strong>
+                      <p>
+                        {b.due < today() ? 'Conta vencida em ' : 'Vencimento em '}
+                        {fmt(b.due)} · {money(b.amount)}
+                      </p>
+                    </div>
+                    <button className="outline" onClick={() => M({ kind: 'detail', bill: b })}>
+                      Ver conta
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="empty">
+                  <CheckCircle2 />
+                  <h3>Tudo em dia</h3>
+                  <p>Seus próximos avisos aparecerão aqui.</p>
+                </div>
+              )}
+              <p className="notice">
+                Os avisos deste painel são calculados ao abrir o app. E-mails automáticos exigem
+                SMTP configurado no servidor. Não há alarme sonoro ou push em segundo plano nesta
+                versão.
+              </p>
+            </section>
+          )}
+          {page === 'Configurações' && (
+            <section className="table-card settings">
+              <h2>Sua conta</h2>
+              <label>
+                Nome
+                <input value={user.name} readOnly />
+              </label>
+              <label>
+                E-mail
+                <input value={user.email} readOnly />
+              </label>
+              <h3>Lembretes de pagamento</h3>
+              <p>
+                Escolha a antecedência ao cadastrar cada conta. O servidor pode enviar um e-mail
+                diário desde essa data até o registro do pagamento, inclusive após o vencimento.
+              </p>
+              <h3>Contas mensais</h3>
+              <p>
+                Cadastre o dia do vencimento uma vez. A conta se repete em todos os meses a partir
+                do cadastro, até ser excluída. Cada mês tem seu próprio pagamento. Valores variáveis
+                podem ser ajustados em Editar detalhes; a alteração também atualiza os próximos
+                meses em aberto. Excluir uma conta apaga a recorrência inteira e seu histórico.
+              </p>
+              <h3>Web e celular</h3>
+              <p>
+                Use “Adicionar à tela inicial” no navegador do celular para abrir o app como um
+                aplicativo. É necessária conexão à internet.
+              </p>
+              <h3>Exportar e importar</h3>
+              <p>
+                Exporte suas contas recorrentes em CSV (para backup ou para importar em outra conta)
+                e um extrato mensal em PDF. Escolha o mês antes de baixar. A importação cria as
+                contas no seu usuário; os pagamentos continuam sendo registrados mês a mês.
+              </p>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  marginTop: 8,
+                }}
+              >
+                <label
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: '0.9em',
+                  }}
+                >
+                  Mês:
+                  <input
+                    type="month"
+                    value={month}
+                    onChange={e => e.target.value && Month(e.target.value)}
+                    style={{
+                      font: 'inherit',
+                      padding: '4px 8px',
+                      borderRadius: 6,
+                      border: '1px solid var(--line)',
+                      background: 'var(--bg2)',
+                      color: 'var(--text)',
+                    }}
+                  />
+                </label>
+                <button className="outline" onClick={exportPdf} disabled={busy}>
+                  <Download size={16} />
+                  Extrato de{' '}
+                  {new Date(month + '-15T12:00:00').toLocaleDateString('pt-BR', {
+                    month: 'long',
+                    year: 'numeric',
+                    timeZone: 'America/Sao_Paulo',
+                  })}{' '}
+                  (PDF)
+                </button>
+                <button className="outline" onClick={exportCsv} disabled={busy}>
+                  <Download size={16} />
+                  Contas (CSV)
+                </button>
+                <label
+                  className="outline"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Copy size={16} />
+                  Importar CSV
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    style={{ display: 'none' }}
+                    disabled={busy}
+                    onChange={importCsv}
+                  />
+                </label>
+              </div>
+            </section>
+          )}
+          <footer>
+            <span className="footer-logo">fatura.</span>
+            <span>Mais organização. Menos preocupação.</span>
+            <span>
+              Feito para o seu dia a dia <span className="tiny-dot" />
+            </span>
+          </footer>
+        </div>
+      </main>
+      {toast && (
+        <div className="toast" role="status">
+          <CheckCircle2 size={18} />
+          {toast}
+        </div>
+      )}
+      {modal && (
+        <div
+          className="overlay"
+          onClick={() => {
+            if (!busy) M(null);
+          }}
+        >
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              modal.kind === 'form' ? 'Cadastrar conta mensal' : 'Detalhes da conta mensal'
+            }
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              className="close icon"
+              aria-label="Fechar"
+              disabled={busy}
+              onClick={() => M(null)}
+            >
+              <X />
+            </button>
+            {modal.kind === 'form' ? (
+              <>
+                <p className="eyebrow">TUDO SOB CONTROLE</p>
+                <h2>{modal.bill ? 'Editar conta mensal' : 'Uma nova conta mensal'}</h2>
+                <p>
+                  {modal.bill
+                    ? 'As alterações valem para este mês e os próximos meses em aberto. Meses anteriores são preservados.'
+                    : 'Cadastre uma vez. A conta aparecerá todos os meses, a partir do mês corrente, até você excluí-la.'}
+                </p>
+                <form onSubmit={save}>
+                  <label>
+                    Nome da conta
+                    <input
+                      name="title"
+                      required
+                      maxLength="120"
+                      defaultValue={modal.bill?.title}
+                      placeholder="Ex.: Aluguel da casa"
+                    />
+                  </label>
+                  <div className="form-grid">
+                    <label>
+                      Categoria
+                      <select name="category" defaultValue={modal.bill?.category || 'Moradia'}>
+                        {Object.keys(icons).map(n => (
+                          <option key={n}>{n}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Valor (R$)
+                      <input
+                        name="amount"
+                        type="number"
+                        required
+                        min="0.01"
+                        step="0.01"
+                        max="999999999999.99"
+                        defaultValue={modal.bill?.amount}
+                      />
+                    </label>
+                    <label>
+                      Dia do vencimento
+                      <input
+                        name="dueDay"
+                        type="number"
+                        required
+                        min="1"
+                        max="31"
+                        step="1"
+                        defaultValue={modal.bill?.dueDay || Number(today().slice(-2))}
+                      />
+                    </label>
+                    <label>
+                      Lembrar antes
+                      <select name="reminderDays" defaultValue={modal.bill?.reminderDays ?? 3}>
+                        {[0, 1, 2, 3, 5, 7, 15, 30].map(n => (
+                          <option key={n} value={n}>
+                            {n === 0 ? 'No dia' : n + ' dias antes'}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <label>
+                    Empresa / beneficiário / origem
+                    <input
+                      name="source"
+                      maxLength="200"
+                      defaultValue={modal.bill?.source}
+                      placeholder="Ex.: Enel ou contrato de aluguel"
+                    />
+                  </label>
+                  <p className="notice">
+                    A conta se repete mensalmente sem prazo final. Em meses mais curtos, o
+                    vencimento será no último dia. Confira os valores a cada mês; o pagamento é
+                    registrado separadamente.
+                  </p>
+                  {error && (
+                    <p className="error" role="alert">
+                      {error}
+                    </p>
+                  )}
+                  <button className="primary full" disabled={busy}>
+                    {busy ? 'Salvando…' : 'Salvar conta'}
+                    <Check size={18} />
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <span className="bill-icon">
+                  <Receipt />
+                </span>
+                <h2>{modal.bill.title}</h2>
+                <p>
+                  {modal.bill.source} · {modal.bill.category}
+                </p>
+                <div className="detail-amount">{money(modal.bill.amount)}</div>
+                <div className="detail-line">
+                  <span>Vencimento deste mês</span>
+                  <strong>
+                    {fmt(modal.bill.due)} / {modal.bill.due.slice(0, 4)}
+                  </strong>
+                </div>
+                <div className="detail-line">
+                  <span>Recorrência</span>
+                  <strong>Todo dia {modal.bill.dueDay}</strong>
+                </div>
+                <div className="detail-line">
+                  <span>Situação deste mês</span>
+                  <strong>{status(modal.bill)}</strong>
+                </div>
+                <div className="detail-line">
+                  <span>Lembrete</span>
+                  <strong>{modal.bill.reminderDays} dias antes</strong>
+                </div>
+                {error && <p className="error">{error}</p>}
+                <button className="primary full" disabled={busy} onClick={() => toggle(modal.bill)}>
+                  <CheckCircle2 size={18} />
+                  {modal.bill.paid ? 'Reabrir pagamento deste mês' : 'Registrar este mês como pago'}
+                </button>
+                <p className="muted small">Registro manual. Nenhum pagamento será executado.</p>
+                <div className="modal-actions">
+                  <button className="link" onClick={() => M({ kind: 'form', bill: modal.bill })}>
+                    Editar detalhes
+                  </button>
+                  <button
+                    className="danger"
+                    onClick={() => M({ kind: 'delete', bill: modal.bill })}
+                  >
+                    Excluir conta mensal
+                  </button>
+                </div>
+                {modal.kind === 'delete' && (
+                  <div className="delete-confirm">
+                    <strong>
+                      Excluir a conta de todos os meses e todo o histórico de pagamentos? Esta ação
+                      não pode ser desfeita.
+                    </strong>
+                    <button className="danger" disabled={busy} onClick={() => remove(modal.bill)}>
+                      Excluir recorrência e histórico
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+createRoot(document.getElementById('root')).render(<App />);
